@@ -1,0 +1,3 @@
+python verify_shipment_quantity.py Alps파일.xlsx ERP파일.xlsx
+python verify_shipment_quantity.py Alps파일.xlsx ERP파일.xlsx 결과.xlsx  # 출력 파일명 지정
+[claude/verify-shipment-quantity-Krycx 99d7da0] Rewrite verification program with new Alps/ERP files
