@@ -21,7 +21,7 @@ jobs:
           python-version: "3.11"
 
       - name: 패키지 설치
-        run: pip install PyQt5 pandas openpyxl xlsxwriter pyinstaller
+        run: pip install PyQt5 pandas openpyxl xlsxwriter xlrd pyinstaller
 
       - name: EXE 빌드
         working-directory: erp_alps_checker
