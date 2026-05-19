@@ -117,8 +117,8 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
 
     erp_grouped["ERP합산"] = erp_grouped[["D1", "D2", "D3"]].sum(axis=1)
 
-    # Alps: ERP코드별 출고수량 합산 (취소 제외 여부 선택 가능, 기본 포함)
-    alps_valid = alps_df.copy()
+    # Alps: 취소·변경 상태 제외 후 합산
+    alps_valid = alps_df[~alps_df["상태"].isin(["취소", "변경"])].copy()
     alps_grouped = (
         alps_valid.groupby("ERP코드")
         .agg(
