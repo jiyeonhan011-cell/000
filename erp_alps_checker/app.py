@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from logic import load_erp, load_alps, run_check, to_excel_bytes
+from logic import load_erp, load_alps, run_check, to_excel_bytes, apply_custom_ratios
 
 st.set_page_config(
     page_title="ERP ↔ Alps 수량 검증",
@@ -108,8 +108,39 @@ if run_btn:
             delta_color="inverse",
         )
 
-        if s["mixed_unit_count"]:
-            st.warning(f"⚠ 단위 혼재 항목: {s['mixed_unit_count']}건 (ERP 단위 ≠ Alps 단위)")
+        # ── 환산비 조정 ────────────────────────────────────────────────────────
+        need_ratio = result["merged"][result["merged"]["단위혼재"] & ~result["merged"]["일치여부"]].copy()
+        if not need_ratio.empty:
+            with st.expander(f"⚙ 단위 환산비 조정 ({len(need_ratio)}건) — 확인 후 '환산 적용' 클릭"):
+                st.caption("ERP 수량 ÷ 환산비 = Alps 비교 수량 | 자동 계산된 값이며 직접 수정 가능합니다.")
+                ratio_df = need_ratio[["품목코드", "품목명", "규격", "단위", "Alps단위", "ERP합산", "Alps출고수량", "환산비"]].copy()
+                ratio_df["ERP÷환산비"] = (ratio_df["ERP합산"] / ratio_df["환산비"]).round(2)
+
+                edited = st.data_editor(
+                    ratio_df,
+                    column_config={
+                        "품목코드":    st.column_config.TextColumn(disabled=True),
+                        "품목명":      st.column_config.TextColumn(disabled=True),
+                        "규격":        st.column_config.TextColumn(disabled=True),
+                        "단위":        st.column_config.TextColumn(disabled=True),
+                        "Alps단위":    st.column_config.TextColumn(disabled=True),
+                        "ERP합산":     st.column_config.NumberColumn(disabled=True, format="%,.0f"),
+                        "Alps출고수량": st.column_config.NumberColumn(disabled=True, format="%,.0f"),
+                        "환산비":      st.column_config.NumberColumn(min_value=0.01, step=1.0, format="%.0f"),
+                        "ERP÷환산비":  st.column_config.NumberColumn(disabled=True, format="%.2f"),
+                    },
+                    use_container_width=True,
+                    hide_index=True,
+                    key="ratio_editor",
+                )
+
+                if st.button("🔄 환산 적용 후 재검증", type="primary"):
+                    custom = dict(zip(edited["품목코드"], edited["환산비"]))
+                    result = apply_custom_ratios(result, custom)
+                    s = result["summary"]
+                    st.success(f"재검증 완료 — 일치 {s['match_count']}건 ({s['match_pct']:.1f}%) / 불일치 {s['mismatch_count']}건")
+                    st.session_state["result"] = result
+                    st.rerun()
 
         st.markdown("---")
 

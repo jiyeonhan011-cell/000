@@ -148,7 +148,27 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
         return erp_u != alps_u and erp_u and alps_u
 
     merged["단위혼재"] = merged.apply(_unit_mixed, axis=1).astype(bool)
+
+    # 환산비 없이 1차 비교
+    merged["환산비"] = 1.0
+    merged["ERP환산수량"] = merged["ERP합산"].astype(float)
+    merged["차이"] = merged["ERP합산"] - merged["Alps출고수량"]
     merged["일치여부"] = (merged["차이"].abs() < 0.001).astype(bool)
+
+    # 단위혼재 + 불일치 항목에 대해 제안 환산비 계산
+    def _suggest_ratio(row):
+        """ERP합산/Alps출고수량 가 정수에 가까우면 그 값, 아니면 규격에서 추출"""
+        if row["Alps출고수량"] <= 0:
+            return 1.0
+        ratio_calc = row["ERP합산"] / row["Alps출고수량"]
+        if abs(ratio_calc - round(ratio_calc)) < 0.05:
+            return round(ratio_calc)
+        # 규격에서 추출
+        nums = re.findall(r"\*\s*(\d+(?:\.\d+)?)\s*ea", str(row.get("규격", "")), re.IGNORECASE)
+        return float(nums[-1]) if nums else 1.0
+
+    mask_mixed_miss = merged["단위혼재"] & ~merged["일치여부"]
+    merged.loc[mask_mixed_miss, "환산비"] = merged[mask_mixed_miss].apply(_suggest_ratio, axis=1)
 
     # 품목명 보완
     merged["품목명"] = merged["품목명"].fillna(merged["Alps제품명"])
@@ -176,6 +196,38 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
             "match_count": int(match_count),
             "mismatch_count": int(mismatch_count),
             "mixed_unit_count": int(mixed_unit_count),
+            "match_qty": match_qty,
+            "mismatch_qty": mismatch_qty,
+            "match_pct": match_qty / total_erp * 100 if total_erp else 0,
+        },
+    }
+
+
+def apply_custom_ratios(result: dict, custom_ratios: dict) -> dict:
+    """사용자 지정 환산비를 적용해 결과 재계산. custom_ratios = {품목코드: ratio}"""
+    merged = result["merged"].copy()
+
+    for code, ratio in custom_ratios.items():
+        mask = merged["품목코드"] == code
+        r = float(ratio) if ratio else 1.0
+        merged.loc[mask, "환산비"] = r
+        merged.loc[mask, "ERP환산수량"] = merged.loc[mask, "ERP합산"] / r if r > 0 else merged.loc[mask, "ERP합산"]
+
+    merged["차이"] = merged["ERP환산수량"] - merged["Alps출고수량"]
+    merged["일치여부"] = (merged["차이"].abs() < 0.001).astype(bool)
+
+    total_erp = merged["ERP합산"].sum()
+    match_qty = merged.loc[merged["일치여부"], "ERP합산"].sum()
+    mismatch_qty = merged.loc[~merged["일치여부"], "ERP합산"].sum()
+
+    return {
+        **result,
+        "merged": merged,
+        "mismatch": merged[~merged["일치여부"]].copy().sort_values("차이", key=abs, ascending=False),
+        "summary": {
+            **result["summary"],
+            "match_count": int(merged["일치여부"].sum()),
+            "mismatch_count": int((~merged["일치여부"]).sum()),
             "match_qty": match_qty,
             "mismatch_qty": mismatch_qty,
             "match_pct": match_qty / total_erp * 100 if total_erp else 0,
