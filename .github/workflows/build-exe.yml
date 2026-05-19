@@ -5,6 +5,9 @@ on:
     branches: ["claude/add-korean-language-pTR3W", "main"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -18,17 +21,17 @@ jobs:
           python-version: "3.11"
 
       - name: 패키지 설치
-        run: |
-          pip install PyQt5 pandas openpyxl xlsxwriter pyinstaller
+        run: pip install PyQt5 pandas openpyxl xlsxwriter pyinstaller
 
       - name: EXE 빌드
         working-directory: erp_alps_checker
-        run: |
-          pyinstaller --onefile --windowed --name ERP_Alps_Check --add-data "logic.py;." gui.py
+        run: pyinstaller --onefile --windowed --name ERP_Alps_Check --add-data "logic.py;." gui.py
 
-      - name: EXE 업로드 (다운로드 가능)
-        uses: actions/upload-artifact@v4
+      - name: Release 생성 및 EXE 업로드
+        uses: softprops/action-gh-release@v2
         with:
-          name: ERP_Alps_Check
-          path: erp_alps_checker/dist/ERP_Alps_Check.exe
-          retention-days: 30
+          tag_name: latest-build
+          name: "ERP_Alps_Check 최신 빌드"
+          body: "ERP ↔ Alps 출고수량 검증 프로그램"
+          files: erp_alps_checker/dist/ERP_Alps_Check.exe
+          make_latest: true
