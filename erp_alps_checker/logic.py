@@ -86,13 +86,18 @@ def load_alps(file, sheet_name=None) -> pd.DataFrame:
     df["출고수량"] = pd.to_numeric(df["출고수량"], errors="coerce").fillna(0)
 
     # PAK 단위 → EA 자동 환산
-    # 제품명에 "(Nkg*MEA)" 패턴이 있으면 1 PAK = M EA
+    # 제품명에 <PAK 단위> 또는 <N봉 단위> 명시된 경우만 적용
     def _pak_ratio(row):
-        if str(row.get("단위", "")).strip().upper() not in ("PAK", "PK", "BOX"):
-            return 1
         name = str(row.get("제품명", ""))
-        m = re.search(r"\*\s*(\d+)\s*EA", name, re.IGNORECASE)
-        return int(m.group(1)) if m else 1
+        # <PAK 단위> 명시된 경우: 제품명에서 *MEA 추출
+        if "<PAK 단위>" in name or "<pak 단위>" in name.lower():
+            m = re.search(r"\*\s*(\d+)\s*EA", name, re.IGNORECASE)
+            return int(m.group(1)) if m else 1
+        # <N봉 단위> 명시된 경우: N 추출
+        m2 = re.search(r"<\s*(\d+)\s*봉\s*단위>", name)
+        if m2:
+            return int(m2.group(1))
+        return 1
 
     df["_pak_ratio"] = df.apply(_pak_ratio, axis=1)
     df["출고수량_EA"] = df["출고수량"] * df["_pak_ratio"]
@@ -130,12 +135,15 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
 
     erp_grouped["ERP합산"] = erp_grouped[["D1", "D2", "D3"]].sum(axis=1)
 
-    # Alps: 취소·변경 상태 제외 후 합산 (PAK→EA 환산 적용)
+    # Alps: 취소·변경 상태 제외 후 합산
+    # Alps출고수량 = 원본 수량 합계 (화면 표시용)
+    # Alps환산수량 = PAK/봉 환산 적용 수량 (비교 계산용)
     alps_valid = alps_df[~alps_df["상태"].isin(["취소", "변경"])].copy()
     alps_grouped = (
         alps_valid.groupby("ERP코드")
         .agg(
-            Alps출고수량=("출고수량_EA", "sum"),   # PAK 환산된 수량 사용
+            Alps출고수량=("출고수량", "sum"),       # 원본 수량 (표시용)
+            Alps환산수량=("출고수량_EA", "sum"),     # 환산 수량 (비교용)
             Alps단위=("단위", lambda x: x.mode().iloc[0] if not x.empty else ""),
             Alps제품명=("제품명", lambda x: x.mode().iloc[0] if not x.empty else ""),
         )
@@ -152,7 +160,7 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
 
     merged["ERP합산"] = merged["ERP합산"].fillna(0)
     merged["Alps출고수량"] = merged["Alps출고수량"].fillna(0)
-    merged["차이"] = merged["ERP합산"] - merged["Alps출고수량"]
+    merged["Alps환산수량"] = merged["Alps환산수량"].fillna(0)
 
     # 단위 혼재 감지
     def _unit_mixed(row):
@@ -162,10 +170,10 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
 
     merged["단위혼재"] = merged.apply(_unit_mixed, axis=1).astype(bool)
 
-    # 환산비 없이 1차 비교
+    # 환산비 없이 1차 비교 (Alps환산수량 기준으로 차이 계산)
     merged["환산비"] = 1.0
     merged["ERP환산수량"] = merged["ERP합산"].astype(float)
-    merged["차이"] = merged["ERP합산"] - merged["Alps출고수량"]
+    merged["차이"] = merged["ERP합산"] - merged["Alps환산수량"]
     merged["일치여부"] = (merged["차이"].abs() < 0.001).astype(bool)
 
     # 단위혼재 + 불일치 항목에 대해 제안 환산비 계산
@@ -226,7 +234,7 @@ def apply_custom_ratios(result: dict, custom_ratios: dict) -> dict:
         merged.loc[mask, "환산비"] = r
         merged.loc[mask, "ERP환산수량"] = merged.loc[mask, "ERP합산"] / r if r > 0 else merged.loc[mask, "ERP합산"]
 
-    merged["차이"] = merged["ERP환산수량"] - merged["Alps출고수량"]
+    merged["차이"] = merged["ERP환산수량"] - merged["Alps환산수량"]
     merged["일치여부"] = (merged["차이"].abs() < 0.001).astype(bool)
 
     total_erp = merged["ERP합산"].sum()
