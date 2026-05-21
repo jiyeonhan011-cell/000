@@ -117,8 +117,13 @@ def assign_d_levels(erp_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     return erp_df, d_map
 
 
-def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
+def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame, erp_filter: str = "TCT 케이터링 이동처리") -> dict:
     """ERP와 Alps 수량 비교 실행."""
+    # ERP 비고 필터링
+    if erp_filter:
+        mask = erp_df["비고"].str.contains(erp_filter, na=False)
+        erp_df = erp_df[mask].copy()
+
     erp_df, d_map = assign_d_levels(erp_df)
 
     # ERP: 품목코드별 D레벨 합산
@@ -207,10 +212,17 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
 
     mismatch_df = merged[~merged["일치여부"]].copy().sort_values("차이", key=abs, ascending=False)
 
+    # 환산기준 시트용: 자동 환산 규칙 추출
+    ratio_rules = alps_valid[alps_valid["_pak_ratio"] > 1][
+        ["ERP코드", "제품명", "규격", "단위", "_pak_ratio"]
+    ].drop_duplicates(["ERP코드", "_pak_ratio"])
+
     return {
         "merged": merged,
         "mismatch": mismatch_df,
         "d_map": d_map,
+        "_ratio_rules": ratio_rules,
+        "custom_ratios": {},
         "summary": {
             "total_erp": total_erp,
             "total_alps": total_alps,
@@ -245,6 +257,7 @@ def apply_custom_ratios(result: dict, custom_ratios: dict) -> dict:
         **result,
         "merged": merged,
         "mismatch": merged[~merged["일치여부"]].copy().sort_values("차이", key=abs, ascending=False),
+        "custom_ratios": custom_ratios,
         "summary": {
             **result["summary"],
             "match_count": int(merged["일치여부"].sum()),
@@ -330,5 +343,51 @@ def to_excel_bytes(result: dict) -> bytes:
         })
         mismatch_export["단위혼재"] = mismatch_export["단위혼재"].map({True: "⚠ 혼재", False: ""})
         mismatch_export.to_excel(writer, sheet_name="불일치목록", index=False)
+
+        # ── 환산기준 시트 ─────────────────────────────────────────
+        # 자동 환산 규칙: Alps _pak_ratio > 1 인 개별 행 기준
+        ratio_rules = result.get("_ratio_rules", pd.DataFrame())
+        custom_ratios = result.get("custom_ratios", {})
+        merged = result["merged"]
+
+        rows = []
+        # 자동 환산 항목
+        if not ratio_rules.empty:
+            for _, r in ratio_rules.iterrows():
+                rows.append({
+                    "품목코드": r["ERP코드"],
+                    "제품명(Alps)": r["제품명"],
+                    "규격": r.get("규격", ""),
+                    "ERP단위": "",
+                    "Alps단위": r["단위"],
+                    "환산비(1 Alps단위 = N EA)": int(r["_pak_ratio"]),
+                    "구분": "자동(제품명 기준)",
+                })
+
+        # 수동 환산 항목
+        for code, ratio in custom_ratios.items():
+            m_row = merged[merged["품목코드"] == code]
+            if not m_row.empty:
+                mr = m_row.iloc[0]
+                rows.append({
+                    "품목코드": code,
+                    "제품명(Alps)": mr["품목명"],
+                    "규격": mr["규격"],
+                    "ERP단위": mr["단위"],
+                    "Alps단위": mr["Alps단위"],
+                    "환산비(1 Alps단위 = N EA)": ratio,
+                    "구분": "수동 설정",
+                })
+
+        ratio_sheet = pd.DataFrame(rows).drop_duplicates(["품목코드", "Alps단위"]) if rows else \
+            pd.DataFrame(columns=["품목코드", "제품명(Alps)", "규격", "ERP단위", "Alps단위",
+                                   "환산비(1 Alps단위 = N EA)", "구분"])
+
+        ratio_sheet.to_excel(writer, sheet_name="환산기준", index=False)
+        ws_r = writer.sheets["환산기준"]
+        ws_r.set_column(0, 0, 14)
+        ws_r.set_column(1, 1, 40)
+        ws_r.set_column(2, 2, 20)
+        ws_r.set_column(6, 6, 12)
 
     return buf.getvalue()

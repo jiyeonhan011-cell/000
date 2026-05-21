@@ -49,6 +49,13 @@ with st.expander("하나의 파일에 두 시트가 모두 있는 경우 (xlsm)"
     with c2:
         alps_sheet_c = st.text_input("Alps 시트명", value="Alps_원본", key="alps_sheet_c")
 
+# ── ERP 비고 필터 ─────────────────────────────────────────────────────────────
+erp_filter = st.text_input(
+    "ERP 비고 필터 (해당 텍스트 포함된 행만 집계)",
+    value="TCT 케이터링 이동처리",
+    help="비워두면 전체 행 집계. 기본값: 'TCT 케이터링 이동처리'",
+)
+
 # ── 검증 실행 ─────────────────────────────────────────────────────────────────
 run_btn = st.button("🔍 검증 실행", type="primary", use_container_width=True)
 
@@ -75,7 +82,7 @@ if run_btn:
     if erp_data is not None and alps_data is not None:
         with st.spinner("검증 중..."):
             try:
-                result = run_check(erp_data, alps_data)
+                result = run_check(erp_data, alps_data, erp_filter=erp_filter.strip())
             except Exception as e:
                 st.error(f"검증 실패: {e}")
                 st.stop()
