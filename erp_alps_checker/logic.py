@@ -84,6 +84,19 @@ def load_alps(file, sheet_name=None) -> pd.DataFrame:
         raise ValueError(f"Alps 파일에 필수 컬럼 없음: {missing}\n실제 컬럼: {list(df.columns)}")
 
     df["출고수량"] = pd.to_numeric(df["출고수량"], errors="coerce").fillna(0)
+
+    # PAK 단위 → EA 자동 환산
+    # 제품명에 "(Nkg*MEA)" 패턴이 있으면 1 PAK = M EA
+    def _pak_ratio(row):
+        if str(row.get("단위", "")).strip().upper() not in ("PAK", "PK", "BOX"):
+            return 1
+        name = str(row.get("제품명", ""))
+        m = re.search(r"\*\s*(\d+)\s*EA", name, re.IGNORECASE)
+        return int(m.group(1)) if m else 1
+
+    df["_pak_ratio"] = df.apply(_pak_ratio, axis=1)
+    df["출고수량_EA"] = df["출고수량"] * df["_pak_ratio"]
+
     return df
 
 
@@ -117,12 +130,12 @@ def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame) -> dict:
 
     erp_grouped["ERP합산"] = erp_grouped[["D1", "D2", "D3"]].sum(axis=1)
 
-    # Alps: 취소·변경 상태 제외 후 합산
+    # Alps: 취소·변경 상태 제외 후 합산 (PAK→EA 환산 적용)
     alps_valid = alps_df[~alps_df["상태"].isin(["취소", "변경"])].copy()
     alps_grouped = (
         alps_valid.groupby("ERP코드")
         .agg(
-            Alps출고수량=("출고수량", "sum"),
+            Alps출고수량=("출고수량_EA", "sum"),   # PAK 환산된 수량 사용
             Alps단위=("단위", lambda x: x.mode().iloc[0] if not x.empty else ""),
             Alps제품명=("제품명", lambda x: x.mode().iloc[0] if not x.empty else ""),
         )
