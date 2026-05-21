@@ -117,12 +117,14 @@ def assign_d_levels(erp_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     return erp_df, d_map
 
 
-def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame, erp_filter: str = "TCT 케이터링 이동처리") -> dict:
+ERP_FILTER = "TCT 케이터링 이동처리"
+
+
+def run_check(erp_df: pd.DataFrame, alps_df: pd.DataFrame, erp_filter: str = ERP_FILTER) -> dict:
     """ERP와 Alps 수량 비교 실행."""
-    # ERP 비고 필터링
-    if erp_filter:
-        mask = erp_df["비고"].str.contains(erp_filter, na=False)
-        erp_df = erp_df[mask].copy()
+    # ERP 비고 필터: 항상 TCT 케이터링 이동처리 행만 집계
+    mask = erp_df["비고"].str.contains(ERP_FILTER, na=False)
+    erp_df = erp_df[mask].copy()
 
     erp_df, d_map = assign_d_levels(erp_df)
 
