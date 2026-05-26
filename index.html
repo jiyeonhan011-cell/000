@@ -209,51 +209,73 @@
     .tab-content { display: none; padding: 20px; }
     .tab-content.active { display: block; }
 
-    /* ── Court board ── */
-    .court-board {
+    /* ── Schedule layout ── */
+    .active-courts {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 14px; align-items: start;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 10px; margin-bottom: 16px;
     }
+    .active-court-card {
+      border: 2px solid #16a34a; border-radius: 12px;
+      overflow: hidden; background: #f0fdf4;
+    }
+    .active-court-card.empty {
+      border-color: var(--border); background: #fafbfc; opacity: 0.55;
+    }
+    .active-court-hd {
+      background: #16a34a; color: #fff;
+      padding: 7px 12px; font-size: 0.85rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .active-court-hd.empty-hd { background: #94a3b8; }
+    .active-type-chip { font-size: 0.7rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: rgba(255,255,255,0.25); }
+    .active-court-body { padding: 10px 12px; }
+    .act-team {
+      padding: 6px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.85); border-left: 3px solid;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .at-men   { border-color: var(--male-color); }
+    .at-women { border-color: var(--female-color); }
+    .at-mixed { border-color: var(--mixed-color); }
+    .act-vs { text-align: center; font-size: 0.7rem; font-weight: 800; color: #16a34a; padding: 4px 0; }
 
-    .court-queue-section {
+    .waiting-section {
       border: 1.5px solid var(--border); border-radius: 12px;
       overflow: hidden; background: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     }
-    .court-queue-hd {
-      background: var(--primary); color: #fff;
-      padding: 10px 14px; display: flex; align-items: center;
-      justify-content: space-between; font-weight: 700;
+    .waiting-hd {
+      background: #f8fafc; padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .court-queue-title { font-size: 0.95rem; }
-    .court-queue-count { font-size: 0.76rem; opacity: 0.85; }
-
-    .queue-item { padding: 11px 14px; border-top: 1px solid var(--border); }
-    .queue-item.active  { background: #f0fdf4; }
-    .queue-item.waiting { background: #fff; }
-
-    .queue-item-hd { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-    .queue-seq { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); min-width: 24px; }
-    .queue-type-chip { padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+    .waiting-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 0.86rem;
+    }
+    .waiting-item:last-child { border-bottom: none; }
+    .waiting-item:hover { background: #f8fafc; }
+    .waiting-seq { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); min-width: 26px; }
+    .queue-type-chip { padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
     .qtc-men   { background: #dbeafe; color: var(--male-color); }
     .qtc-women { background: #fce7f3; color: var(--female-color); }
     .qtc-mixed { background: #f3e8ff; color: var(--mixed-color); }
+    .waiting-teams { flex: 1; display: flex; align-items: center; gap: 5px; min-width: 0; font-weight: 600; }
+    .waiting-names { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: 0.84rem; }
+    .waiting-vs { font-size: 0.68rem; font-weight: 800; color: var(--text-muted); flex-shrink: 0; }
+    .waiting-avg { font-size: 0.7rem; color: var(--text-muted); flex-shrink: 0; }
 
-    .queue-status { margin-left: auto; padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; }
-    .qs-active  { background: #dcfce7; color: #16a34a; }
-    .qs-waiting { background: #f1f5f9; color: var(--text-muted); }
-
-    .queue-teams { display: flex; align-items: center; gap: 8px; }
-    .queue-team {
-      flex: 1; padding: 6px 8px; border-radius: 6px;
-      background: #f8fafc; border-left: 3px solid;
-      display: flex; flex-direction: column; gap: 3px; min-width: 0;
+    .type-list-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.86rem;
     }
-    .qt-men   { border-color: var(--male-color); }
-    .qt-women { border-color: var(--female-color); }
-    .qt-mixed { border-color: var(--mixed-color); }
-    .queue-vs { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); flex-shrink: 0; }
+    .type-list-item:last-child { border-bottom: none; }
+    .type-list-item.active-row { background: #f0fdf4; }
+    .tli-status { padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; flex-shrink: 0; }
+    .tlis-active  { background: #dcfce7; color: #16a34a; }
+    .tlis-waiting { background: #f1f5f9; color: var(--text-muted); }
 
     .player-row-item { display: flex; align-items: center; gap: 5px; font-size: 0.86rem; font-weight: 600; }
     .pdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
@@ -384,7 +406,7 @@
 
       .scrollable { max-height: none; }
 
-      .court-board { grid-template-columns: 1fr; }
+      .active-courts { grid-template-columns: repeat(2, 1fr); gap: 8px; }
       .player-row-item { font-size: 0.82rem; }
 
       .summary-num { font-size: 1.35rem; }
@@ -803,12 +825,11 @@
     return matches;
   }
 
-  function buildSchedule(allMatches, courtCount) {
+  function buildSchedule(allMatches) {
     const getIds = m => [m.team1[0].id, m.team1[1].id, m.team2[0].id, m.team2[1].id];
     const pool = [...allMatches];
     const ordered = [];
 
-    // 선수 중복 없이 경기 순서 결정
     while (pool.length > 0) {
       const slot = [], used = new Set();
       for (let i = pool.length - 1; i >= 0; i--) {
@@ -822,9 +843,7 @@
       if (slot.length === 0) break;
       ordered.push(...slot);
     }
-
-    // 전체 경기를 코트별로 균등 배분 (라운드로빈)
-    return ordered.map((m, i) => ({ ...m, court: (i % courtCount) + 1 }));
+    return ordered;
   }
 
   function generateMatches() {
@@ -835,7 +854,7 @@
     const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
     const mixedM = formMatches(formMixedPairs(males, females)).map(m => ({ ...m, type: 'mixed' }));
 
-    const matches = buildSchedule([...menM, ...womenM, ...mixedM], settings.courtCount);
+    const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
 
     const cnt = {
       men:   matches.filter(m => m.type === 'men').length,
@@ -872,67 +891,59 @@
     </div>`;
   }
 
-  function groupByCourt(matches) {
-    const map = new Map();
-    matches.forEach(m => {
-      if (!map.has(m.court)) map.set(m.court, []);
-      map.get(m.court).push(m);
-    });
-    return map;
-  }
+  const matchLabel = t => t === 'men' ? '남복' : t === 'women' ? '여복' : '혼복';
+  const matchAvg   = (m, side) => LEVELS[Math.min(LEVELS.length - 1, Math.round(avgLevel(m[side][0], m[side][1])))];
 
-  function queueItem(m, queuePos, seq) {
-    const isActive = queuePos === 0;
-    const lbl = m.type === 'men' ? '남복' : m.type === 'women' ? '여복' : '혼복';
+  function activeCourt(m, n) {
+    const lbl = matchLabel(m.type);
     return `
-      <div class="queue-item ${isActive ? 'active' : 'waiting'}">
-        <div class="queue-item-hd">
-          <span class="queue-seq">${seq}번</span>
-          <span class="queue-type-chip qtc-${m.type}">${lbl}</span>
-          <span class="queue-status ${isActive ? 'qs-active' : 'qs-waiting'}">${isActive ? '🟢 진행중' : '⏳ 대기중'}</span>
+      <div class="active-court-card">
+        <div class="active-court-hd">
+          <span>🟢 코트 ${n}</span>
+          <span class="active-type-chip">${lbl}</span>
         </div>
-        <div class="queue-teams">
-          <div class="queue-team qt-${m.type}">
-            ${playerRow(m.team1[0])}${playerRow(m.team1[1])}
-          </div>
-          <div class="queue-vs">VS</div>
-          <div class="queue-team qt-${m.type}">
-            ${playerRow(m.team2[0])}${playerRow(m.team2[1])}
-          </div>
+        <div class="active-court-body">
+          <div class="act-team at-${m.type}">${playerRow(m.team1[0])}${playerRow(m.team1[1])}</div>
+          <div class="act-vs">VS</div>
+          <div class="act-team at-${m.type}">${playerRow(m.team2[0])}${playerRow(m.team2[1])}</div>
         </div>
       </div>`;
   }
 
-  function renderCourtBoard(matches, typeFilter = null) {
-    const byCourt = groupByCourt(matches);
-    if (byCourt.size === 0) return '';
-    return [...byCourt.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([court, allMatches]) => {
-        const shown = typeFilter ? allMatches.filter(m => m.type === typeFilter) : allMatches;
-        if (shown.length === 0) return '';
-        const items = shown.map((m, i) => queueItem(m, allMatches.indexOf(m), i + 1)).join('');
-        return `
-          <div class="court-queue-section">
-            <div class="court-queue-hd">
-              <span class="court-queue-title">코트 ${court}</span>
-              <span class="court-queue-count">${shown.length}경기</span>
-            </div>
-            ${items}
-          </div>`;
-      }).filter(Boolean).join('');
+  function emptyCourtCard(n) {
+    return `
+      <div class="active-court-card empty">
+        <div class="active-court-hd empty-hd"><span>코트 ${n}</span><span style="font-size:0.7rem;opacity:0.8;">비어있음</span></div>
+        <div class="active-court-body" style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.84rem;">경기 없음</div>
+      </div>`;
+  }
+
+  function waitingRow(m, seq) {
+    return `
+      <div class="waiting-item">
+        <span class="waiting-seq">${seq}번</span>
+        <span class="queue-type-chip qtc-${m.type}">${matchLabel(m.type)}</span>
+        <div class="waiting-teams">
+          <span class="waiting-names">${m.team1[0].name}·${m.team1[1].name}</span>
+          <span class="waiting-vs">VS</span>
+          <span class="waiting-names">${m.team2[0].name}·${m.team2[1].name}</span>
+        </div>
+        <span class="waiting-avg">${matchAvg(m,'team1')}·${matchAvg(m,'team2')}</span>
+      </div>`;
   }
 
   function renderAllTab(matches, cnt, males, females) {
     const total = cnt.men + cnt.women + cnt.mixed;
-    if (total === 0) {
-      return `<div class="no-matches"><div class="big-icon">📋</div>선수를 등록하고<br>게임 편성을 생성해주세요</div>`;
-    }
+    if (total === 0) return `<div class="no-matches"><div class="big-icon">📋</div>선수를 등록하고<br>게임 편성을 생성해주세요</div>`;
 
     let warn = '';
-    if (males.length < 4)                             warn += `<div class="alert alert-warning">남자 선수 ${males.length}명 — 남복은 4명 이상 필요합니다.</div>`;
-    if (females.length < 4)                           warn += `<div class="alert alert-warning">여자 선수 ${females.length}명 — 여복은 4명 이상 필요합니다.</div>`;
-    if (males.length < 2 || females.length < 2)       warn += `<div class="alert alert-warning">혼복은 남·여 각 2명 이상 필요합니다.</div>`;
+    if (males.length < 4)                       warn += `<div class="alert alert-warning">남자 선수 ${males.length}명 — 남복은 4명 이상 필요합니다.</div>`;
+    if (females.length < 4)                     warn += `<div class="alert alert-warning">여자 선수 ${females.length}명 — 여복은 4명 이상 필요합니다.</div>`;
+    if (males.length < 2 || females.length < 2) warn += `<div class="alert alert-warning">혼복은 남·여 각 2명 이상 필요합니다.</div>`;
+
+    const lessonNotice = settings.hasLessonCourt
+      ? `<div style="background:#f3e8ff;border:1.5px solid #d8b4fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.84rem;color:#7c3aed;font-weight:500;">🎯 레슨코트 별도 운영 중 — 일반 코트 ${settings.courtCount}개로만 경기 편성됩니다</div>`
+      : '';
 
     const summary = `
       <div class="summary-grid">
@@ -941,23 +952,33 @@
         <div class="summary-box summary-box-mixed"><div class="summary-num summary-num-mixed">${cnt.mixed}</div><div class="summary-label">혼복 경기</div></div>
       </div>`;
 
-    const actions = `
-      <div class="action-bar">
-        <button class="btn btn-secondary" onclick="generateMatches()">🔄 재편성</button>
-        <button class="btn btn-secondary" onclick="window.print()">🖨️ 인쇄</button>
-      </div>`;
+    const actions = `<div class="action-bar">
+      <button class="btn btn-secondary" onclick="generateMatches()">🔄 재편성</button>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️ 인쇄</button>
+    </div>`;
 
-    const lessonNotice = settings.hasLessonCourt
-      ? `<div style="background:#f3e8ff;border:1.5px solid #d8b4fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.84rem;color:#7c3aed;font-weight:500;">🎯 레슨코트 별도 운영 중 — 일반 코트 ${settings.courtCount}개로만 경기 편성됩니다</div>`
-      : '';
+    const cc = settings.courtCount;
+    const active  = matches.slice(0, Math.min(cc, matches.length));
+    const waiting = matches.slice(cc);
 
-    const board = renderCourtBoard(matches);
-    return warn + lessonNotice + summary + actions + '<div class="court-board">' + board + '</div>';
+    const activeCourtsHtml = `<div class="active-courts">
+      ${active.map((m, i) => activeCourt(m, i + 1)).join('')}
+      ${Array.from({length: cc - active.length}, (_, i) => emptyCourtCard(active.length + i + 1)).join('')}
+    </div>`;
+
+    const waitingHtml = waiting.length > 0
+      ? `<div class="waiting-section">
+          <div class="waiting-hd"><span>⏳ 대기 목록</span><span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;">${waiting.length}경기</span></div>
+          ${waiting.map((m, i) => waitingRow(m, i + 1)).join('')}
+        </div>`
+      : `<div style="text-align:center;padding:14px;color:#16a34a;font-weight:600;font-size:0.88rem;">✅ 모든 경기가 코트에 배정됐습니다</div>`;
+
+    return warn + lessonNotice + summary + actions + activeCourtsHtml + waitingHtml;
   }
 
   function renderTypeTab(matches, type, countA = 0, maleCount = 0, femaleCount = 0) {
-    const board = renderCourtBoard(matches, type);
-    if (!board) {
+    const typeMatches = matches.filter(m => m.type === type);
+    if (typeMatches.length === 0) {
       let hint = '';
       if (type === 'men'   && countA < 4)                         hint = `남자 선수가 최소 4명 필요합니다 (현재 ${countA}명)`;
       if (type === 'women' && countA < 4)                         hint = `여자 선수가 최소 4명 필요합니다 (현재 ${countA}명)`;
@@ -965,7 +986,31 @@
       const icon = type === 'men' ? '🔵' : type === 'women' ? '🔴' : '🟣';
       return `<div class="no-matches"><div class="big-icon">${icon}</div>${hint || '경기 없음'}</div>`;
     }
-    return '<div class="court-board">' + board + '</div>';
+
+    const cc = settings.courtCount;
+    const items = typeMatches.map((m, i) => {
+      const idx      = matches.indexOf(m);
+      const isActive = idx < cc;
+      const status   = isActive
+        ? `<span class="tli-status tlis-active">🟢 코트 ${idx + 1}</span>`
+        : `<span class="tli-status tlis-waiting">⏳ 대기 ${i + 1}번</span>`;
+      return `
+        <div class="type-list-item ${isActive ? 'active-row' : ''}">
+          ${status}
+          <span class="queue-type-chip qtc-${m.type}">${matchLabel(m.type)}</span>
+          <div class="waiting-teams">
+            <span class="waiting-names">${m.team1[0].name}·${m.team1[1].name}</span>
+            <span class="waiting-vs">VS</span>
+            <span class="waiting-names">${m.team2[0].name}·${m.team2[1].name}</span>
+          </div>
+          <span class="waiting-avg">${matchAvg(m,'team1')}·${matchAvg(m,'team2')}</span>
+        </div>`;
+    }).join('');
+
+    return `<div class="waiting-section">
+      <div class="waiting-hd"><span>${matchLabel(type)} 경기</span><span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;">${typeMatches.length}경기</span></div>
+      ${items}
+    </div>`;
   }
 
   /* ── Init ── */
