@@ -790,15 +790,11 @@
   /* ── Match generation ── */
   function formSamePairs(list) {
     const sorted = [...list].sort((a, b) => levelVal(a.level) - levelVal(b.level));
-    const pairs = [], used = new Set();
-    for (let i = 0; i < sorted.length; i++) {
-      if (used.has(sorted[i].id)) continue;
-      for (let j = i + 1; j < sorted.length; j++) {
-        if (used.has(sorted[j].id)) continue;
-        pairs.push([sorted[i], sorted[j]]);
-        used.add(sorted[i].id); used.add(sorted[j].id);
-        break;
-      }
+    const pairs = [];
+    let lo = 0, hi = sorted.length - 1;
+    while (lo < hi) {
+      pairs.push([sorted[lo], sorted[hi]]);
+      lo++; hi--;
     }
     return pairs;
   }
