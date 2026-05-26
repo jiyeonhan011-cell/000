@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>배드민턴 게임 편성</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1557b0;
+      --male-color: #1976d2;
+      --female-color: #e91e8c;
+      --mixed-color: #7b1fa2;
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --border: #dde3ec;
+      --text: #1a202c;
+      --text-muted: #64748b;
+      --radius: 12px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
+      --level-a: #ef4444;
+      --level-b: #f97316;
+      --level-c: #22c55e;
+      --level-d: #3b82f6;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, '맑은 고딕', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+      color: #fff;
+      padding: 20px 24px;
+      box-shadow: var(--shadow-lg);
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p { font-size: 0.85rem; opacity: 0.85; margin-top: 2px; }
+
+    .stats-bar {
+      display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap;
+    }
+    .stat-chip {
+      background: rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    .grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 1rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-body { padding: 20px; }
+
+    /* Form */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group input, .form-group select {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+      background: #fafbfc;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: #fff; }
+
+    .gender-buttons { display: flex; gap: 6px; }
+    .gender-btn {
+      flex: 1; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+      cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fafbfc;
+      transition: all 0.15s;
+    }
+    .gender-btn.male.active  { border-color: var(--male-color); background: #e3f2fd; color: var(--male-color); }
+    .gender-btn.female.active { border-color: var(--female-color); background: #fce4ec; color: var(--female-color); }
+    .gender-btn:hover { opacity: 0.8; }
+
+    .level-buttons { display: flex; gap: 6px; }
+    .level-btn {
+      flex: 1; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+      cursor: pointer; font-size: 0.95rem; font-weight: 700; background: #fafbfc;
+      transition: all 0.15s;
+    }
+    .level-btn.active-A { border-color: var(--level-a); background: #fee2e2; color: var(--level-a); }
+    .level-btn.active-B { border-color: var(--level-b); background: #ffedd5; color: var(--level-b); }
+    .level-btn.active-C { border-color: var(--level-c); background: #dcfce7; color: var(--level-c); }
+    .level-btn.active-D { border-color: var(--level-d); background: #dbeafe; color: var(--level-d); }
+    .level-btn:hover { opacity: 0.8; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 18px; border-radius: 8px; border: none;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; width: 100%; margin-top: 8px; padding: 12px; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(26,115,232,0.3); }
+    .btn-generate {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff; width: 100%; padding: 13px; font-size: 1rem;
+      border-radius: 10px; border: none;
+      box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+    }
+    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(34,197,94,0.4); }
+    .btn-generate:disabled { background: #d1d5db; box-shadow: none; cursor: not-allowed; transform: none; }
+    .btn-danger { background: #fff; color: #ef4444; border: 1.5px solid #fca5a5; font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; }
+    .btn-danger:hover { background: #fee2e2; }
+    .btn-secondary { background: #f1f5f9; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* Player list */
+    .player-list { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
+    .player-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: #fafbfc; transition: all 0.15s;
+    }
+    .player-item:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .player-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .avatar-male { background: #dbeafe; color: var(--male-color); }
+    .avatar-female { background: #fce7f3; color: var(--female-color); }
+    .player-info { flex: 1; min-width: 0; }
+    .player-name { font-weight: 600; font-size: 0.9rem; }
+    .player-meta { font-size: 0.75rem; color: var(--text-muted); }
+    .level-badge {
+      width: 26px; height: 26px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .badge-A { background: #fee2e2; color: var(--level-a); }
+    .badge-B { background: #ffedd5; color: var(--level-b); }
+    .badge-C { background: #dcfce7; color: var(--level-c); }
+    .badge-D { background: #dbeafe; color: var(--level-d); }
+
+    .empty-list {
+      text-align: center; padding: 30px 20px;
+      color: var(--text-muted); font-size: 0.9rem;
+    }
+    .empty-list .icon { font-size: 2rem; margin-bottom: 8px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border); background: #f8fafc; }
+    .tab-btn {
+      padding: 12px 16px; border: none; background: none;
+      font-size: 0.875rem; font-weight: 600; color: var(--text-muted);
+      cursor: pointer; position: relative; border-radius: 8px 8px 0 0;
+      transition: color 0.15s;
+    }
+    .tab-btn.active { color: var(--primary); }
+    .tab-btn.active::after {
+      content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 2px; background: var(--primary); border-radius: 2px 2px 0 0;
+    }
+    .tab-btn .count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; border-radius: 9px;
+      font-size: 0.7rem; margin-left: 5px; padding: 0 5px;
+      background: #e2e8f0; color: var(--text-muted);
+    }
+    .tab-btn.active .count { background: #dbeafe; color: var(--primary); }
+
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+
+    /* Match cards */
+    .match-type-section { margin-bottom: 24px; }
+    .match-type-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px; padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+    .type-label {
+      font-size: 0.75rem; font-weight: 700; padding: 3px 10px;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .label-men { background: #dbeafe; color: var(--male-color); }
+    .label-women { background: #fce7f3; color: var(--female-color); }
+    .label-mixed { background: #f3e8ff; color: var(--mixed-color); }
+
+    .matches-grid { display: flex; flex-direction: column; gap: 10px; }
+    .match-card {
+      border-radius: 10px; border: 1.5px solid var(--border);
+      overflow: hidden; transition: all 0.15s;
+    }
+    .match-card:hover { box-shadow: var(--shadow); border-color: #cbd5e1; }
+
+    .match-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 14px; font-size: 0.75rem; font-weight: 600;
+    }
+    .match-header-men    { background: #eff6ff; color: var(--male-color); }
+    .match-header-women  { background: #fdf2f8; color: var(--female-color); }
+    .match-header-mixed  { background: #faf5ff; color: var(--mixed-color); }
+
+    .match-body {
+      display: flex; align-items: center; padding: 12px 14px; gap: 10px;
+    }
+    .team {
+      flex: 1; display: flex; flex-direction: column; gap: 4px;
+    }
+    .team.right { align-items: flex-end; }
+    .player-tag {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.88rem; font-weight: 600;
+    }
+    .team.right .player-tag { flex-direction: row-reverse; }
+    .player-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-male { background: var(--male-color); }
+    .dot-female { background: var(--female-color); }
+
+    .vs-badge {
+      flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
+    }
+
+    .level-indicator {
+      font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;
+    }
+
+    .round-header {
+      display: flex; align-items: center; gap: 8px; margin: 16px 0 8px;
+    }
+    .round-badge {
+      background: var(--primary); color: #fff;
+      font-size: 0.75rem; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .round-line { flex: 1; height: 1px; background: var(--border); }
+
+    .no-matches {
+      text-align: center; padding: 40px 20px;
+      color: var(--text-muted); font-size: 0.9rem;
+    }
+    .no-matches .big-icon { font-size: 3rem; margin-bottom: 8px; }
+
+    .action-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+
+    .alert {
+      padding: 10px 14px; border-radius: 8px; font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+    .alert-warning { background: #fff7ed; border: 1.5px solid #fed7aa; color: #c2410c; }
+    .alert-info { background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1d4ed8; }
+
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      margin-bottom: 16px;
+    }
+    .summary-box {
+      border-radius: 10px; padding: 12px; text-align: center;
+    }
+    .summary-box-men    { background: #eff6ff; border: 1.5px solid #bfdbfe; }
+    .summary-box-women  { background: #fdf2f8; border: 1.5px solid #fbcfe8; }
+    .summary-box-mixed  { background: #faf5ff; border: 1.5px solid #e9d5ff; }
+    .summary-num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .summary-label { font-size: 0.72rem; font-weight: 600; margin-top: 2px; color: var(--text-muted); }
+    .summary-num-men { color: var(--male-color); }
+    .summary-num-women { color: var(--female-color); }
+    .summary-num-mixed { color: var(--mixed-color); }
+
+    .scrollable { max-height: 600px; overflow-y: auto; }
+
+    .shake { animation: shake 0.3s; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    @media print {
+      header .stats-bar, .card:first-child, .action-bar, .tabs { display: none !important; }
+      .tab-content { display: block !important; }
+      .card { box-shadow: none; border: 1px solid #e5e7eb; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏸 배드민턴 게임 편성</h1>
+  <p>급수별 자동 게임 편성 시스템</p>
+  <div class="stats-bar" id="headerStats">
+    <span class="stat-chip">전체 0명</span>
+    <span class="stat-chip">남 0명</span>
+    <span class="stat-chip">여 0명</span>
+  </div>
+</header>
+
+<div class="container">
+  <div class="grid">
+
+    <!-- Left: Player Registration -->
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <div class="card-header">👤 선수 등록</div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label>이름</label>
+            <input type="text" id="inputName" placeholder="이름 입력" maxlength="10" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>성별</label>
+              <div class="gender-buttons">
+                <button class="gender-btn male active" data-gender="남" onclick="selectGender('남')">남</button>
+                <button class="gender-btn female" data-gender="여" onclick="selectGender('여')">여</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>급수</label>
+              <div class="level-buttons">
+                <button class="level-btn active-A" data-level="A" onclick="selectLevel('A')">A</button>
+                <button class="level-btn" data-level="B" onclick="selectLevel('B')">B</button>
+                <button class="level-btn" data-level="C" onclick="selectLevel('C')">C</button>
+                <button class="level-btn" data-level="D" onclick="selectLevel('D')">D</button>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addPlayer()">+ 선수 추가</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" id="playerListHeader">
+          📋 참가 선수 <span style="font-weight: 400; color: var(--text-muted); font-size: 0.85rem;">(0명)</span>
+        </div>
+        <div class="card-body" style="padding: 12px;">
+          <div class="player-list" id="playerList">
+            <div class="empty-list">
+              <div class="icon">🏸</div>
+              선수를 등록해주세요
+            </div>
+          </div>
+        </div>
+        <div style="padding: 12px 12px 16px;">
+          <button class="btn btn-generate" id="btnGenerate" onclick="generateMatches()" disabled>
+            ⚡ 게임 편성 생성
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Match Schedule -->
+    <div class="card">
+      <div class="tabs" id="tabs">
+        <button class="tab-btn active" data-tab="all" onclick="switchTab('all')">전체 <span class="count" id="countAll">0</span></button>
+        <button class="tab-btn" data-tab="men" onclick="switchTab('men')">남복 <span class="count" id="countMen">0</span></button>
+        <button class="tab-btn" data-tab="women" onclick="switchTab('women')">여복 <span class="count" id="countWomen">0</span></button>
+        <button class="tab-btn" data-tab="mixed" onclick="switchTab('mixed')">혼복 <span class="count" id="countMixed">0</span></button>
+      </div>
+
+      <!-- All tab -->
+      <div class="tab-content active" id="tab-all">
+        <div class="no-matches">
+          <div class="big-icon">📋</div>
+          선수를 등록하고 게임 편성을 생성해주세요
+        </div>
+      </div>
+
+      <!-- Men tab -->
+      <div class="tab-content" id="tab-men">
+        <div class="no-matches">
+          <div class="big-icon">🔵</div>
+          남복 경기가 없습니다
+        </div>
+      </div>
+
+      <!-- Women tab -->
+      <div class="tab-content" id="tab-women">
+        <div class="no-matches">
+          <div class="big-icon">🔴</div>
+          여복 경기가 없습니다
+        </div>
+      </div>
+
+      <!-- Mixed tab -->
+      <div class="tab-content" id="tab-mixed">
+        <div class="no-matches">
+          <div class="big-icon">🟣</div>
+          혼복 경기가 없습니다
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let players = [];
+  let nextId = 1;
+  let selectedGender = '남';
+  let selectedLevel = 'A';
+
+  const LEVELS = ['A', 'B', 'C', 'D'];
+  const levelVal = l => LEVELS.indexOf(l);
+  const avgLevel = (p1, p2) => (levelVal(p1.level) + levelVal(p2.level)) / 2;
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  function selectGender(g) {
+    selectedGender = g;
+    document.querySelectorAll('.gender-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.gender === g);
+    });
+  }
+
+  function selectLevel(l) {
+    selectedLevel = l;
+    document.querySelectorAll('.level-btn').forEach(b => {
+      b.className = 'level-btn' + (b.dataset.level === l ? ' active-' + l : '');
+    });
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+  }
+
+  function levelBadge(level) {
+    return `<span class="level-badge badge-${level}">${level}</span>`;
+  }
+
+  function genderColor(gender) {
+    return gender === '남' ? 'var(--male-color)' : 'var(--female-color)';
+  }
+
+  function initials(name) {
+    return name.slice(0, 2);
+  }
+
+  // ── Add player ─────────────────────────────────────────────────────────────
+  function addPlayer() {
+    const nameInput = document.getElementById('inputName');
+    const name = nameInput.value.trim();
+    if (!name) {
+      nameInput.classList.add('shake');
+      nameInput.focus();
+      setTimeout(() => nameInput.classList.remove('shake'), 300);
+      return;
+    }
+    players.push({ id: nextId++, name, gender: selectedGender, level: selectedLevel });
+    nameInput.value = '';
+    nameInput.focus();
+    renderPlayerList();
+    updateStats();
+  }
+
+  document.getElementById('inputName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addPlayer();
+  });
+
+  function removePlayer(id) {
+    players = players.filter(p => p.id !== id);
+    renderPlayerList();
+    updateStats();
+  }
+
+  // ── Render player list ─────────────────────────────────────────────────────
+  function renderPlayerList() {
+    const list = document.getElementById('playerList');
+    const header = document.getElementById('playerListHeader');
+    const btn = document.getElementById('btnGenerate');
+
+    header.innerHTML = `📋 참가 선수 <span style="font-weight:400;color:var(--text-muted);font-size:.85rem;">(${players.length}명)</span>`;
+    btn.disabled = players.length < 4;
+
+    if (players.length === 0) {
+      list.innerHTML = `<div class="empty-list"><div class="icon">🏸</div>선수를 등록해주세요</div>`;
+      return;
+    }
+
+    const sorted = [...players].sort((a, b) => {
+      if (a.gender !== b.gender) return a.gender === '남' ? -1 : 1;
+      return levelVal(a.level) - levelVal(b.level);
+    });
+
+    list.innerHTML = sorted.map(p => `
+      <div class="player-item">
+        <div class="player-avatar ${p.gender === '남' ? 'avatar-male' : 'avatar-female'}">${initials(p.name)}</div>
+        <div class="player-info">
+          <div class="player-name">${p.name}</div>
+          <div class="player-meta">${p.gender === '남' ? '남' : '여'} · ${p.level}급</div>
+        </div>
+        ${levelBadge(p.level)}
+        <button class="btn btn-danger" onclick="removePlayer(${p.id})">삭제</button>
+      </div>
+    `).join('');
+  }
+
+  // ── Update header stats ────────────────────────────────────────────────────
+  function updateStats() {
+    const males = players.filter(p => p.gender === '남').length;
+    const females = players.filter(p => p.gender === '여').length;
+    document.getElementById('headerStats').innerHTML = `
+      <span class="stat-chip">전체 ${players.length}명</span>
+      <span class="stat-chip">남 ${males}명</span>
+      <span class="stat-chip">여 ${females}명</span>
+    `;
+  }
+
+  // ── Pairing algorithm ──────────────────────────────────────────────────────
+  // Form doubles pairs (greedy, level-sorted)
+  function formSamePairs(playerList) {
+    const sorted = [...playerList].sort((a, b) => levelVal(a.level) - levelVal(b.level));
+    const pairs = [];
+    const used = new Set();
+
+    for (let i = 0; i < sorted.length; i++) {
+      if (used.has(sorted[i].id)) continue;
+      for (let j = i + 1; j < sorted.length; j++) {
+        if (used.has(sorted[j].id)) continue;
+        pairs.push([sorted[i], sorted[j]]);
+        used.add(sorted[i].id);
+        used.add(sorted[j].id);
+        break;
+      }
+    }
+    return pairs;
+  }
+
+  // Form mixed pairs: best male with best female by level
+  function formMixedPairs(males, females) {
+    const sm = [...males].sort((a, b) => levelVal(a.level) - levelVal(b.level));
+    const sf = [...females].sort((a, b) => levelVal(a.level) - levelVal(b.level));
+    const pairs = [];
+    const len = Math.min(sm.length, sf.length);
+    for (let i = 0; i < len; i++) {
+      pairs.push([sm[i], sf[i]]);
+    }
+    return pairs;
+  }
+
+  // Generate round-robin matches from pairs, filtering by level balance
+  function formMatches(pairs, maxLevelDiff = 2) {
+    const matches = [];
+    for (let i = 0; i < pairs.length; i++) {
+      for (let j = i + 1; j < pairs.length; j++) {
+        const avg1 = avgLevel(pairs[i][0], pairs[i][1]);
+        const avg2 = avgLevel(pairs[j][0], pairs[j][1]);
+        if (Math.abs(avg1 - avg2) <= maxLevelDiff) {
+          matches.push({ team1: pairs[i], team2: pairs[j] });
+        }
+      }
+    }
+    return matches;
+  }
+
+  // Schedule matches into rounds (each player appears at most once per round)
+  function scheduleRounds(matches) {
+    const rounds = [];
+    const unscheduled = [...matches];
+
+    while (unscheduled.length > 0) {
+      const round = [];
+      const usedInRound = new Set();
+
+      for (let i = unscheduled.length - 1; i >= 0; i--) {
+        const m = unscheduled[i];
+        const ids = [m.team1[0].id, m.team1[1].id, m.team2[0].id, m.team2[1].id];
+        if (ids.every(id => !usedInRound.has(id))) {
+          round.push(m);
+          ids.forEach(id => usedInRound.add(id));
+          unscheduled.splice(i, 1);
+        }
+      }
+
+      if (round.length === 0) break; // safety
+      rounds.push(round);
+    }
+
+    return rounds;
+  }
+
+  // ── Generate matches ───────────────────────────────────────────────────────
+  function generateMatches() {
+    const males = players.filter(p => p.gender === '남');
+    const females = players.filter(p => p.gender === '여');
+
+    const menPairs = formSamePairs(males);
+    const womenPairs = formSamePairs(females);
+    const mixedPairs = formMixedPairs(males, females);
+
+    const menMatches = formMatches(menPairs);
+    const womenMatches = formMatches(womenPairs);
+    const mixedMatches = formMatches(mixedPairs);
+
+    const menRounds = scheduleRounds(menMatches);
+    const womenRounds = scheduleRounds(womenMatches);
+    const mixedRounds = scheduleRounds(mixedMatches);
+
+    const totalMen = menMatches.length;
+    const totalWomen = womenMatches.length;
+    const totalMixed = mixedMatches.length;
+    const total = totalMen + totalWomen + totalMixed;
+
+    document.getElementById('countAll').textContent = total;
+    document.getElementById('countMen').textContent = totalMen;
+    document.getElementById('countWomen').textContent = totalWomen;
+    document.getElementById('countMixed').textContent = totalMixed;
+
+    // Render all tab
+    const allHtml = renderAllTab(
+      { rounds: menRounds, matches: menMatches, type: 'men', label: '남복', labelClass: 'label-men' },
+      { rounds: womenRounds, matches: womenMatches, type: 'women', label: '여복', labelClass: 'label-women' },
+      { rounds: mixedRounds, matches: mixedMatches, type: 'mixed', label: '혼복', labelClass: 'label-mixed' },
+      males, females
+    );
+    document.getElementById('tab-all').innerHTML = allHtml;
+
+    document.getElementById('tab-men').innerHTML = renderTypeTab(menRounds, menMatches, 'men', males.length);
+    document.getElementById('tab-women').innerHTML = renderTypeTab(womenRounds, womenMatches, 'women', females.length);
+    document.getElementById('tab-mixed').innerHTML = renderTypeTab(mixedRounds, mixedMatches, 'mixed', 0, males.length, females.length);
+
+    switchTab('all');
+  }
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
+  function playerTag(p, align = 'left') {
+    const dot = `<span class="player-dot ${p.gender === '남' ? 'dot-male' : 'dot-female'}"></span>`;
+    const level = `<span class="level-badge badge-${p.level}" style="font-size:0.65rem;width:20px;height:20px;border-radius:4px;">${p.level}</span>`;
+    const name = `<span>${p.name}</span>`;
+    return `<div class="player-tag">${align === 'right' ? level + dot + name : dot + name + level}</div>`;
+  }
+
+  function matchCard(m, type) {
+    const hdrClass = `match-header-${type}`;
+    const t = m.team1; const o = m.team2;
+    const avg1 = avgLevel(t[0], t[1]);
+    const avg2 = avgLevel(o[0], o[1]);
+    const lvlLabel1 = LEVELS[Math.round(avg1)];
+    const lvlLabel2 = LEVELS[Math.round(avg2)];
+
+    return `
+    <div class="match-card">
+      <div class="match-header ${hdrClass}">
+        <span>${type === 'men' ? '남복' : type === 'women' ? '여복' : '혼복'}</span>
+        <span>평균급수: ${lvlLabel1} vs ${lvlLabel2}</span>
+      </div>
+      <div class="match-body">
+        <div class="team">
+          ${playerTag(t[0])}
+          ${playerTag(t[1])}
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="team right">
+          ${playerTag(o[0], 'right')}
+          ${playerTag(o[1], 'right')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderRounds(rounds, type) {
+    if (rounds.length === 0) return '';
+    return rounds.map((round, i) => `
+      <div class="round-header">
+        <span class="round-badge">${i + 1}라운드</span>
+        <div class="round-line"></div>
+        <span style="font-size:.75rem;color:var(--text-muted);">${round.length}경기</span>
+      </div>
+      <div class="matches-grid">${round.map(m => matchCard(m, type)).join('')}</div>
+    `).join('');
+  }
+
+  function renderTypeTab(rounds, matches, type, countA = 0, maleCount = 0, femaleCount = 0) {
+    if (matches.length === 0) {
+      let hint = '';
+      if (type === 'men' && countA < 4) hint = `남자 선수가 최소 4명 필요합니다 (현재 ${countA}명)`;
+      else if (type === 'women' && countA < 4) hint = `여자 선수가 최소 4명 필요합니다 (현재 ${countA}명)`;
+      else if (type === 'mixed' && (maleCount < 2 || femaleCount < 2)) hint = `혼복은 남·여 각 2명 이상 필요합니다 (남 ${maleCount}명, 여 ${femaleCount}명)`;
+      const icon = type === 'men' ? '🔵' : type === 'women' ? '🔴' : '🟣';
+      return `<div class="no-matches"><div class="big-icon">${icon}</div>${hint || '경기 없음'}</div>`;
+    }
+    return `<div class="scrollable">${renderRounds(rounds, type)}</div>`;
+  }
+
+  function renderAllTab(menData, womenData, mixedData, males, females) {
+    const total = menData.matches.length + womenData.matches.length + mixedData.matches.length;
+
+    if (total === 0) {
+      return `<div class="no-matches"><div class="big-icon">📋</div>선수를 등록하고 게임 편성을 생성해주세요</div>`;
+    }
+
+    let warnings = '';
+    if (males.length < 4) warnings += `<div class="alert alert-warning">남자 선수 ${males.length}명 — 남복 편성에는 4명 이상 필요합니다.</div>`;
+    if (females.length < 4) warnings += `<div class="alert alert-warning">여자 선수 ${females.length}명 — 여복 편성에는 4명 이상 필요합니다.</div>`;
+    if (males.length < 2 || females.length < 2) warnings += `<div class="alert alert-warning">혼복 편성에는 남·여 각 2명 이상 필요합니다.</div>`;
+
+    const summary = `
+      <div class="summary-grid">
+        <div class="summary-box summary-box-men">
+          <div class="summary-num summary-num-men">${menData.matches.length}</div>
+          <div class="summary-label">남복 경기</div>
+        </div>
+        <div class="summary-box summary-box-women">
+          <div class="summary-num summary-num-women">${womenData.matches.length}</div>
+          <div class="summary-label">여복 경기</div>
+        </div>
+        <div class="summary-box summary-box-mixed">
+          <div class="summary-num summary-num-mixed">${mixedData.matches.length}</div>
+          <div class="summary-label">혼복 경기</div>
+        </div>
+      </div>
+    `;
+
+    const actionBar = `
+      <div class="action-bar">
+        <button class="btn btn-secondary" onclick="generateMatches()">🔄 재편성</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨️ 인쇄</button>
+      </div>
+    `;
+
+    let content = '';
+
+    const sections = [
+      { ...menData, icon: '🔵', title: '남자 복식 (남복)' },
+      { ...womenData, icon: '🔴', title: '여자 복식 (여복)' },
+      { ...mixedData, icon: '🟣', title: '혼합 복식 (혼복)' },
+    ];
+
+    for (const s of sections) {
+      if (s.matches.length === 0) continue;
+      content += `
+        <div class="match-type-section">
+          <div class="match-type-header">
+            <span>${s.icon}</span>
+            <strong>${s.title}</strong>
+            <span class="type-label ${s.labelClass}">${s.matches.length}경기</span>
+          </div>
+          ${renderRounds(s.rounds, s.type)}
+        </div>
+      `;
+    }
+
+    return warnings + summary + actionBar + `<div class="scrollable">${content}</div>`;
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  renderPlayerList();
+  updateStats();
+</script>
+</body>
+</html>
