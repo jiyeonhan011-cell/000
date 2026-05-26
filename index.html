@@ -803,33 +803,28 @@
     return matches;
   }
 
-  function buildRounds(allMatches, courtCount) {
+  function buildSchedule(allMatches, courtCount) {
     const getIds = m => [m.team1[0].id, m.team1[1].id, m.team2[0].id, m.team2[1].id];
     const pool = [...allMatches];
-    const rounds = [];
-    let ri = 0;
+    const ordered = [];
 
+    // 선수 중복 없이 경기 순서 결정
     while (pool.length > 0) {
-      const round = [];
-      const used  = new Set();
-      let cn = 1;
-
+      const slot = [], used = new Set();
       for (let i = pool.length - 1; i >= 0; i--) {
-        if (cn > courtCount) break;
-        const m   = pool[i];
-        const ids = getIds(m);
+        const m = pool[i], ids = getIds(m);
         if (ids.every(id => !used.has(id))) {
-          round.push({ ...m, court: cn++, roundIdx: ri });
+          slot.push(m);
           ids.forEach(id => used.add(id));
           pool.splice(i, 1);
         }
       }
-
-      if (round.length === 0) break;
-      rounds.push(round);
-      ri++;
+      if (slot.length === 0) break;
+      ordered.push(...slot);
     }
-    return rounds;
+
+    // 전체 경기를 코트별로 균등 배분 (라운드로빈)
+    return ordered.map((m, i) => ({ ...m, court: (i % courtCount) + 1 }));
   }
 
   function generateMatches() {
@@ -840,13 +835,12 @@
     const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
     const mixedM = formMatches(formMixedPairs(males, females)).map(m => ({ ...m, type: 'mixed' }));
 
-    const rounds = buildRounds([...menM, ...womenM, ...mixedM], settings.courtCount);
-    const flat   = rounds.flat();
+    const matches = buildSchedule([...menM, ...womenM, ...mixedM], settings.courtCount);
 
     const cnt = {
-      men:   flat.filter(m => m.type === 'men').length,
-      women: flat.filter(m => m.type === 'women').length,
-      mixed: flat.filter(m => m.type === 'mixed').length,
+      men:   matches.filter(m => m.type === 'men').length,
+      women: matches.filter(m => m.type === 'women').length,
+      mixed: matches.filter(m => m.type === 'mixed').length,
     };
     const total = cnt.men + cnt.women + cnt.mixed;
 
@@ -856,10 +850,10 @@
     document.getElementById('countMixed').textContent = cnt.mixed;
     document.getElementById('navBadgeMatch').textContent = total > 0 ? total : '';
 
-    document.getElementById('tab-all').innerHTML   = renderAllTab(rounds, cnt, males, females);
-    document.getElementById('tab-men').innerHTML   = renderTypeTab(rounds, 'men',   males.length);
-    document.getElementById('tab-women').innerHTML = renderTypeTab(rounds, 'women', females.length);
-    document.getElementById('tab-mixed').innerHTML = renderTypeTab(rounds, 'mixed', 0, males.length, females.length);
+    document.getElementById('tab-all').innerHTML   = renderAllTab(matches, cnt, males, females);
+    document.getElementById('tab-men').innerHTML   = renderTypeTab(matches, 'men',   males.length);
+    document.getElementById('tab-women').innerHTML = renderTypeTab(matches, 'women', females.length);
+    document.getElementById('tab-mixed').innerHTML = renderTypeTab(matches, 'mixed', 0, males.length, females.length);
 
     switchTab('all');
     if (isMobile()) switchMobileView('schedule');
@@ -878,12 +872,12 @@
     </div>`;
   }
 
-  function groupByCourt(rounds) {
+  function groupByCourt(matches) {
     const map = new Map();
-    rounds.forEach(round => round.forEach(m => {
+    matches.forEach(m => {
       if (!map.has(m.court)) map.set(m.court, []);
       map.get(m.court).push(m);
-    }));
+    });
     return map;
   }
 
@@ -909,8 +903,8 @@
       </div>`;
   }
 
-  function renderCourtBoard(rounds, typeFilter = null) {
-    const byCourt = groupByCourt(rounds);
+  function renderCourtBoard(matches, typeFilter = null) {
+    const byCourt = groupByCourt(matches);
     if (byCourt.size === 0) return '';
     return [...byCourt.entries()]
       .sort((a, b) => a[0] - b[0])
@@ -929,7 +923,7 @@
       }).filter(Boolean).join('');
   }
 
-  function renderAllTab(rounds, cnt, males, females) {
+  function renderAllTab(matches, cnt, males, females) {
     const total = cnt.men + cnt.women + cnt.mixed;
     if (total === 0) {
       return `<div class="no-matches"><div class="big-icon">📋</div>선수를 등록하고<br>게임 편성을 생성해주세요</div>`;
@@ -957,12 +951,12 @@
       ? `<div style="background:#f3e8ff;border:1.5px solid #d8b4fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.84rem;color:#7c3aed;font-weight:500;">🎯 레슨코트 별도 운영 중 — 일반 코트 ${settings.courtCount}개로만 경기 편성됩니다</div>`
       : '';
 
-    const board = renderCourtBoard(rounds);
+    const board = renderCourtBoard(matches);
     return warn + lessonNotice + summary + actions + '<div class="court-board">' + board + '</div>';
   }
 
-  function renderTypeTab(rounds, type, countA = 0, maleCount = 0, femaleCount = 0) {
-    const board = renderCourtBoard(rounds, type);
+  function renderTypeTab(matches, type, countA = 0, maleCount = 0, femaleCount = 0) {
+    const board = renderCourtBoard(matches, type);
     if (!board) {
       let hint = '';
       if (type === 'men'   && countA < 4)                         hint = `남자 선수가 최소 4명 필요합니다 (현재 ${countA}명)`;
