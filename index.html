@@ -210,43 +210,61 @@
     .tab-content.active { display: block; }
 
     .matches-grid { display: flex; flex-direction: column; gap: 10px; }
-    .match-card {
+    /* ── Court card grid ── */
+    .courts-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .court-card {
       border-radius: 10px; border: 1.5px solid var(--border);
-      overflow: hidden;
+      overflow: hidden; background: #fff;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.06);
     }
-    .match-header {
+    .court-card-hd {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 7px 14px; font-size: 0.75rem; font-weight: 600;
+      padding: 7px 12px; font-size: 0.74rem; font-weight: 700; gap: 4px;
     }
-    .match-header-men   { background: #eff6ff; color: var(--male-color); }
-    .match-header-women { background: #fdf2f8; color: var(--female-color); }
-    .match-header-mixed { background: #faf5ff; color: var(--mixed-color); }
+    .court-hd-men   { background: #eff6ff; color: var(--male-color); }
+    .court-hd-women { background: #fdf2f8; color: var(--female-color); }
+    .court-hd-mixed { background: #faf5ff; color: var(--mixed-color); }
 
-    .court-chip {
-      display: inline-flex; align-items: center;
-      padding: 1px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 700;
-      background: var(--primary); color: white; vertical-align: middle; margin-left: 4px;
+    .court-num-chip {
+      background: rgba(0,0,0,0.08); padding: 1px 7px;
+      border-radius: 10px; font-size: 0.68rem; flex-shrink: 0;
+    }
+    .court-type-label { font-weight: 700; }
+    .court-avg-label  { font-size: 0.68rem; opacity: 0.8; }
+
+    .court-card-body { padding: 10px 12px; }
+
+    .team-block {
+      padding: 7px 9px; border-radius: 7px;
+      background: #f8fafc; border-left: 3px solid;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .tb-men   { border-color: var(--male-color); }
+    .tb-women { border-color: var(--female-color); }
+    .tb-mixed { border-color: var(--mixed-color); }
+
+    .vs-row {
+      text-align: center; font-size: 0.7rem; font-weight: 800;
+      color: var(--text-muted); padding: 5px 0; letter-spacing: 1px;
     }
 
-    .match-body {
-      display: flex; align-items: center; padding: 12px 14px; gap: 10px;
+    .player-row-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 0.86rem; font-weight: 600;
     }
-    .team { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-    .team.right { align-items: flex-end; }
-    .player-tag {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 0.88rem; font-weight: 600;
+    .pdot {
+      width: 7px; height: 7px; border-radius: 50%;
+      flex-shrink: 0; display: inline-block;
     }
-    .team.right .player-tag { flex-direction: row-reverse; }
-    .player-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .dot-male   { background: var(--male-color); }
-    .dot-female { background: var(--female-color); }
-
-    .vs-badge {
-      flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
-      background: var(--bg); border: 2px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
+    .pname {
+      flex: 1; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; min-width: 0;
     }
 
     .round-header {
@@ -374,9 +392,10 @@
 
       .scrollable { max-height: none; }
 
-      .match-body { padding: 10px 12px; gap: 8px; }
-      .player-tag { font-size: 0.83rem; gap: 5px; }
-      .match-header { padding: 6px 12px; }
+      .courts-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .court-card-body { padding: 8px 10px; }
+      .team-block { padding: 6px 8px; }
+      .player-row-item { font-size: 0.82rem; }
 
       .summary-num { font-size: 1.35rem; }
       .summary-box { padding: 10px; }
@@ -857,43 +876,53 @@
   }
 
   /* ── Rendering ── */
-  function playerTag(p, align = 'left') {
-    const dot   = `<span class="player-dot ${p.gender === '남' ? 'dot-male' : 'dot-female'}"></span>`;
-    const badge = levelBadgeSmall(p.level);
-    const name  = `<span>${p.name}</span>`;
-    return `<div class="player-tag">${align === 'right' ? badge + dot + name : dot + name + badge}</div>`;
+  function playerRow(p) {
+    const cfg  = LEVEL_CFG[p.level];
+    const long = p.level.length > 1;
+    const dot  = p.gender === '남' ? 'var(--male-color)' : 'var(--female-color)';
+    const bst  = `display:inline-flex;align-items:center;background:${cfg.bg};color:${cfg.color};border-radius:4px;font-weight:700;font-size:${long ? '0.58rem' : '0.68rem'};padding:${long ? '1px 3px' : '1px 5px'};white-space:nowrap;flex-shrink:0;`;
+    return `<div class="player-row-item">
+      <span class="pdot" style="background:${dot}"></span>
+      <span class="pname">${p.name}</span>
+      <span style="${bst}">${p.level}</span>
+    </div>`;
   }
 
-  function matchCard(m) {
-    const t = m.team1, o = m.team2;
+  function courtCard(m) {
+    const t    = m.team1, o = m.team2;
+    const lbl  = m.type === 'men' ? '남복' : m.type === 'women' ? '여복' : '혼복';
     const lvl1 = LEVELS[Math.min(LEVELS.length - 1, Math.round(avgLevel(t[0], t[1])))];
     const lvl2 = LEVELS[Math.min(LEVELS.length - 1, Math.round(avgLevel(o[0], o[1])))];
-    const label     = m.type === 'men' ? '남복' : m.type === 'women' ? '여복' : '혼복';
-    const courtText = `코트 ${m.court}`;
-    const courtCls  = 'court-chip';
     return `
-      <div class="match-card">
-        <div class="match-header match-header-${m.type}">
-          <span>${label}<span class="${courtCls}">${courtText}</span></span>
-          <span>평균: ${lvl1} vs ${lvl2}</span>
+      <div class="court-card">
+        <div class="court-card-hd court-hd-${m.type}">
+          <span class="court-num-chip">코트 ${m.court}</span>
+          <span class="court-type-label">${lbl}</span>
+          <span class="court-avg-label">${lvl1}·${lvl2}</span>
         </div>
-        <div class="match-body">
-          <div class="team">${playerTag(t[0])}${playerTag(t[1])}</div>
-          <div class="vs-badge">VS</div>
-          <div class="team right">${playerTag(o[0],'right')}${playerTag(o[1],'right')}</div>
+        <div class="court-card-body">
+          <div class="team-block tb-${m.type}">
+            ${playerRow(t[0])}${playerRow(t[1])}
+          </div>
+          <div class="vs-row">— VS —</div>
+          <div class="team-block tb-${m.type}">
+            ${playerRow(o[0])}${playerRow(o[1])}
+          </div>
         </div>
       </div>`;
   }
 
   function renderRoundBlocks(rounds) {
-    return rounds.map((round, i) => `
-      <div class="round-header">
-        <span class="round-badge">${i + 1}라운드</span>
-        <div class="round-line"></div>
-        <span style="font-size:.75rem;color:var(--text-muted);">${round.length}경기</span>
-      </div>
-      <div class="matches-grid">${round.map(m => matchCard(m)).join('')}</div>
-    `).join('');
+    return rounds.map((round, i) => {
+      const sorted = [...round].sort((a, b) => a.court - b.court);
+      return `
+        <div class="round-header">
+          <span class="round-badge">${i + 1}라운드</span>
+          <div class="round-line"></div>
+          <span style="font-size:.75rem;color:var(--text-muted);">${round.length}코트 동시진행</span>
+        </div>
+        <div class="courts-row">${sorted.map(m => courtCard(m)).join('')}</div>`;
+    }).join('');
   }
 
   function renderAllTab(rounds, cnt, males, females) {
@@ -946,13 +975,14 @@
 
     let html = '', d = 1;
     [...byRound.entries()].sort((a, b) => a[0] - b[0]).forEach(([, ms]) => {
+      const sorted = [...ms].sort((a, b) => a.court - b.court);
       html += `
         <div class="round-header">
           <span class="round-badge">${d++}라운드</span>
           <div class="round-line"></div>
           <span style="font-size:.75rem;color:var(--text-muted);">${ms.length}경기</span>
         </div>
-        <div class="matches-grid">${ms.map(m => matchCard(m)).join('')}</div>`;
+        <div class="courts-row">${sorted.map(m => courtCard(m)).join('')}</div>`;
     });
     return html;
   }
