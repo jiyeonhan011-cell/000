@@ -803,14 +803,20 @@
     return pairs;
   }
 
-  function formMixedPairs(males, females) {
-    const sm = [...males].sort((a, b) => levelVal(a.level) - levelVal(b.level));
-    const sf = [...females].sort((a, b) => levelVal(a.level) - levelVal(b.level));
-    const pairs = [];
-    for (let i = 0; i < Math.min(sm.length, sf.length); i++) {
-      pairs.push([sm[i], sf[i]]);
+  function formMixedMatches(males, females, maxDiff = 2) {
+    const matches = [];
+    for (let i = 0; i < males.length; i++) {
+      for (let j = i + 1; j < males.length; j++) {
+        if (Math.abs(levelVal(males[i].level) - levelVal(males[j].level)) > maxDiff) continue;
+        for (let k = 0; k < females.length; k++) {
+          for (let l = k + 1; l < females.length; l++) {
+            if (Math.abs(levelVal(females[k].level) - levelVal(females[l].level)) > maxDiff) continue;
+            matches.push({ team1: [males[i], females[k]], team2: [males[j], females[l]] });
+          }
+        }
+      }
     }
-    return pairs;
+    return matches;
   }
 
   function formMatches(pairs, maxDiff = 2) {
@@ -852,7 +858,7 @@
 
     const menM   = formMatches(formSamePairs(males)).map(m => ({ ...m, type: 'men' }));
     const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
-    const mixedM = formMatches(formMixedPairs(males, females)).map(m => ({ ...m, type: 'mixed' }));
+    const mixedM = formMixedMatches(males, females).map(m => ({ ...m, type: 'mixed' }));
 
     const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
 
