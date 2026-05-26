@@ -227,7 +227,6 @@
       padding: 1px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 700;
       background: var(--primary); color: white; vertical-align: middle; margin-left: 4px;
     }
-    .court-chip.lesson { background: #a855f7; }
 
     .match-body {
       display: flex; align-items: center; padding: 12px 14px; gap: 10px;
@@ -470,7 +469,7 @@
             </div>
           </div>
           <p style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">
-            레슨코트 ON 시 E·왕초심 경기를 레슨코트로 배정
+            레슨코트 ON 시 해당 코트는 경기 편성에서 제외됩니다
           </p>
         </div>
       </div>
@@ -795,46 +794,25 @@
     return matches;
   }
 
-  function isLessonMatch(m) {
-    const avg = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]]
-      .reduce((s, p) => s + levelVal(p.level), 0) / 4;
-    return avg >= 4;
-  }
-
-  function buildRounds(allMatches, courtCount, hasLessonCourt) {
+  function buildRounds(allMatches, courtCount) {
     const getIds = m => [m.team1[0].id, m.team1[1].id, m.team2[0].id, m.team2[1].id];
-
-    let lessonPool   = hasLessonCourt ? allMatches.filter(isLessonMatch)    : [];
-    let regularPool  = hasLessonCourt ? allMatches.filter(m => !isLessonMatch(m)) : [...allMatches];
-
+    const pool = [...allMatches];
     const rounds = [];
     let ri = 0;
 
-    while (regularPool.length > 0 || lessonPool.length > 0) {
+    while (pool.length > 0) {
       const round = [];
       const used  = new Set();
       let cn = 1;
 
-      for (let i = regularPool.length - 1; i >= 0 && cn <= courtCount; i--) {
-        const m   = regularPool[i];
+      for (let i = pool.length - 1; i >= 0; i--) {
+        if (cn > courtCount) break;
+        const m   = pool[i];
         const ids = getIds(m);
         if (ids.every(id => !used.has(id))) {
           round.push({ ...m, court: cn++, roundIdx: ri });
           ids.forEach(id => used.add(id));
-          regularPool.splice(i, 1);
-        }
-      }
-
-      if (hasLessonCourt) {
-        for (let i = lessonPool.length - 1; i >= 0; i--) {
-          const m   = lessonPool[i];
-          const ids = getIds(m);
-          if (ids.every(id => !used.has(id))) {
-            round.push({ ...m, court: '레슨', roundIdx: ri });
-            ids.forEach(id => used.add(id));
-            lessonPool.splice(i, 1);
-            break;
-          }
+          pool.splice(i, 1);
         }
       }
 
@@ -853,7 +831,7 @@
     const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
     const mixedM = formMatches(formMixedPairs(males, females)).map(m => ({ ...m, type: 'mixed' }));
 
-    const rounds = buildRounds([...menM, ...womenM, ...mixedM], settings.courtCount, settings.hasLessonCourt);
+    const rounds = buildRounds([...menM, ...womenM, ...mixedM], settings.courtCount);
     const flat   = rounds.flat();
 
     const cnt = {
@@ -891,8 +869,8 @@
     const lvl1 = LEVELS[Math.min(LEVELS.length - 1, Math.round(avgLevel(t[0], t[1])))];
     const lvl2 = LEVELS[Math.min(LEVELS.length - 1, Math.round(avgLevel(o[0], o[1])))];
     const label     = m.type === 'men' ? '남복' : m.type === 'women' ? '여복' : '혼복';
-    const courtText = m.court === '레슨' ? '레슨코트' : `코트 ${m.court}`;
-    const courtCls  = m.court === '레슨' ? 'court-chip lesson' : 'court-chip';
+    const courtText = `코트 ${m.court}`;
+    const courtCls  = 'court-chip';
     return `
       <div class="match-card">
         <div class="match-header match-header-${m.type}">
@@ -942,7 +920,11 @@
         <button class="btn btn-secondary" onclick="window.print()">🖨️ 인쇄</button>
       </div>`;
 
-    return warn + summary + actions + '<div class="scrollable">' + renderRoundBlocks(rounds) + '</div>';
+    const lessonNotice = settings.hasLessonCourt
+      ? `<div style="background:#f3e8ff;border:1.5px solid #d8b4fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.84rem;color:#7c3aed;font-weight:500;">🎯 레슨코트 별도 운영 중 — 일반 코트 ${settings.courtCount}개로만 경기 편성됩니다</div>`
+      : '';
+
+    return warn + lessonNotice + summary + actions + '<div class="scrollable">' + renderRoundBlocks(rounds) + '</div>';
   }
 
   function renderTypeTab(rounds, type, countA = 0, maleCount = 0, femaleCount = 0) {
