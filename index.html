@@ -857,7 +857,8 @@
     const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
     const mixedM = formMixedMatches(males, females).map(m => ({ ...m, type: 'mixed' }));
 
-    const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
+    // 역순 탐욕 선택 시 남복/여복이 슬롯0에 먼저 포함되도록 뒤에 배치
+    const matches = buildSchedule([...mixedM, ...womenM, ...menM]);
 
     const cnt = {
       men:   matches.filter(m => m.type === 'men').length,
@@ -964,7 +965,7 @@
     const slot0Count = matches.filter(m => m._slot === 0).length;
     const activeCnt  = Math.min(cc, slot0Count);
     const active  = matches.slice(0, activeCnt);
-    const waiting = matches.slice(activeCnt);
+    const waiting = matches.slice(activeCnt, activeCnt + cc);
 
     const activeCourtsHtml = `<div class="active-courts">
       ${active.map((m, i) => activeCourt(m, i + 1)).join('')}
