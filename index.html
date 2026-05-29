@@ -831,19 +831,20 @@
     const getIds = m => [m.team1[0].id, m.team1[1].id, m.team2[0].id, m.team2[1].id];
     const pool = [...allMatches];
     const ordered = [];
+    let slotNum = 0;
 
     while (pool.length > 0) {
-      const slot = [], used = new Set();
+      const batch = [], used = new Set();
       for (let i = pool.length - 1; i >= 0; i--) {
         const m = pool[i], ids = getIds(m);
         if (ids.every(id => !used.has(id))) {
-          slot.push(m);
-          ids.forEach(id => used.add(id));
-          pool.splice(i, 1);
+          batch.push(m); ids.forEach(id => used.add(id)); pool.splice(i, 1);
         }
       }
-      if (slot.length === 0) break;
-      ordered.push(...slot);
+      if (batch.length === 0) break;
+      batch.forEach(m => (m._slot = slotNum));
+      ordered.push(...batch);
+      slotNum++;
     }
     return ordered;
   }
@@ -960,12 +961,14 @@
     </div>`;
 
     const cc = settings.courtCount;
-    const active  = matches.slice(0, Math.min(cc, matches.length));
-    const waiting = matches.slice(cc);
+    const slot0Count = matches.filter(m => m._slot === 0).length;
+    const activeCnt  = Math.min(cc, slot0Count);
+    const active  = matches.slice(0, activeCnt);
+    const waiting = matches.slice(activeCnt);
 
     const activeCourtsHtml = `<div class="active-courts">
       ${active.map((m, i) => activeCourt(m, i + 1)).join('')}
-      ${Array.from({length: cc - active.length}, (_, i) => emptyCourtCard(active.length + i + 1)).join('')}
+      ${Array.from({length: cc - activeCnt}, (_, i) => emptyCourtCard(activeCnt + i + 1)).join('')}
     </div>`;
 
     const waitingHtml = waiting.length > 0
