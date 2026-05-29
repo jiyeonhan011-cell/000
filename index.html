@@ -898,13 +898,19 @@
   }
 
   function generateMatches() {
-    const males     = players.filter(p => p.gender === '남');
-    const malesForMixed = players.filter(p => p.gender === '남' && !p.womenEligible);
+    const males     = players.filter(p => p.gender === '남' && !p.womenEligible);
     const females   = players.filter(p => p.gender === '여');
     const womenPool = players.filter(p => p.gender === '여' || p.womenEligible);
     const menM   = formMatches(formSamePairs(males)).map(m => ({ ...m, type: 'men' }));
-    const womenM = formMatches(formSamePairs(womenPool)).map(m => ({ ...m, type: 'women' }));
-    const mixedM = formMixedMatches(malesForMixed, females).map(m => ({ ...m, type: 'mixed' }));
+    // 여복 포함 ON 선수가 있는 경기는 상대도 D급 이상(A,B,C,D)이어야 함
+    const womenM = formMatches(formSamePairs(womenPool))
+      .filter(m => {
+        const all = [...m.team1, ...m.team2];
+        if (!all.some(p => p.womenEligible)) return true;
+        return all.every(p => levelVal(p.level) <= 3); // A=0,B=1,C=2,D=3
+      })
+      .map(m => ({ ...m, type: 'women' }));
+    const mixedM = formMixedMatches(males, females).map(m => ({ ...m, type: 'mixed' }));
 
     const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
 
