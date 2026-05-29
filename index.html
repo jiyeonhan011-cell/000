@@ -113,6 +113,7 @@
       transition: all 0.15s; -webkit-tap-highlight-color: transparent; min-height: 42px;
     }
     .lesson-toggle.on { border-color: #a855f7; background: #f3e8ff; color: #a855f7; }
+    #womenEligibleRow { display: none; }
 
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -475,6 +476,9 @@
               </div>
             </div>
           </div>
+          <div id="womenEligibleRow" style="margin-bottom:10px;">
+            <button class="lesson-toggle" id="womenEligibleToggle" onclick="toggleWomenEligible()">여복 포함 OFF</button>
+          </div>
           <button class="btn btn-primary" onclick="addPlayer()">+ 선수 추가</button>
         </div>
       </div>
@@ -586,6 +590,7 @@
   let nextId = 1;
   let selectedGender = '남';
   let selectedLevel = 'A';
+  let selectedWomenEligible = false;
   let settings = { courtCount: 2, hasLessonCourt: false };
 
   const levelVal = l => LEVELS.indexOf(l);
@@ -649,6 +654,21 @@
     selectedGender = g;
     document.querySelectorAll('.gender-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.gender === g));
+    // 여복 포함 토글은 남자일 때만 표시
+    document.getElementById('womenEligibleRow').style.display = g === '남' ? 'block' : 'none';
+    if (g === '여') {
+      selectedWomenEligible = false;
+      const t = document.getElementById('womenEligibleToggle');
+      t.classList.remove('on');
+      t.textContent = '여복 포함 OFF';
+    }
+  }
+
+  function toggleWomenEligible() {
+    selectedWomenEligible = !selectedWomenEligible;
+    const t = document.getElementById('womenEligibleToggle');
+    t.classList.toggle('on', selectedWomenEligible);
+    t.textContent = selectedWomenEligible ? '여복 포함 ON' : '여복 포함 OFF';
   }
 
   function selectLevel(l) {
@@ -722,7 +742,13 @@
       setTimeout(() => inp.classList.remove('shake'), 300);
       return;
     }
-    players.push({ id: nextId++, name, gender: selectedGender, level: selectedLevel });
+    const womenEligible = selectedGender === '남' && selectedWomenEligible;
+    players.push({ id: nextId++, name, gender: selectedGender, level: selectedLevel, womenEligible });
+    // 추가 후 여복 포함 토글 초기화
+    selectedWomenEligible = false;
+    const t = document.getElementById('womenEligibleToggle');
+    t.classList.remove('on');
+    t.textContent = '여복 포함 OFF';
     inp.value = '';
     inp.focus();
     saveToStorage();
@@ -772,6 +798,7 @@
           <div class="player-meta">${p.gender === '남' ? '남' : '여'} · ${p.level}급</div>
         </div>
         ${levelBadge(p.level)}
+        ${p.womenEligible ? `<span style="font-size:0.68rem;font-weight:700;background:#fce7f3;color:#e91e8c;border-radius:4px;padding:2px 5px;flex-shrink:0;">여복</span>` : ''}
         <button class="btn btn-danger" onclick="removePlayer(${p.id})">삭제</button>
       </div>
     `).join('');
@@ -874,8 +901,9 @@
     const males   = players.filter(p => p.gender === '남');
     const females = players.filter(p => p.gender === '여');
 
+    const womenPool = players.filter(p => p.gender === '여' || p.womenEligible);
     const menM   = formMatches(formSamePairs(males)).map(m => ({ ...m, type: 'men' }));
-    const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
+    const womenM = formMatches(formSamePairs(womenPool)).map(m => ({ ...m, type: 'women' }));
     const mixedM = formMixedMatches(males, females).map(m => ({ ...m, type: 'mixed' }));
 
     const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
