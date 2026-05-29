@@ -898,12 +898,13 @@
   }
 
   function generateMatches() {
-    const males     = players.filter(p => p.gender === '남' && !p.womenEligible);
+    const males     = players.filter(p => p.gender === '남');
+    const malesForMixed = players.filter(p => p.gender === '남' && !p.womenEligible);
     const females   = players.filter(p => p.gender === '여');
     const womenPool = players.filter(p => p.gender === '여' || p.womenEligible);
     const menM   = formMatches(formSamePairs(males)).map(m => ({ ...m, type: 'men' }));
     const womenM = formMatches(formSamePairs(womenPool)).map(m => ({ ...m, type: 'women' }));
-    const mixedM = formMixedMatches(males, females).map(m => ({ ...m, type: 'mixed' }));
+    const mixedM = formMixedMatches(malesForMixed, females).map(m => ({ ...m, type: 'mixed' }));
 
     const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
 
