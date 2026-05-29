@@ -835,12 +835,33 @@
 
     while (pool.length > 0) {
       const batch = [], used = new Set();
-      for (let i = pool.length - 1; i >= 0; i--) {
-        const m = pool[i], ids = getIds(m);
-        if (ids.every(id => !used.has(id))) {
-          batch.push(m); ids.forEach(id => used.add(id)); pool.splice(i, 1);
+
+      if (slotNum === 0) {
+        // 첫 슬롯: 남복→여복→혼복 순으로 1경기씩 먼저 확보 (타입 다양성)
+        for (const type of ['men', 'women', 'mixed']) {
+          const idx = pool.findIndex(m => m.type === type && getIds(m).every(id => !used.has(id)));
+          if (idx >= 0) {
+            batch.push(pool[idx]);
+            getIds(pool[idx]).forEach(id => used.add(id));
+            pool.splice(idx, 1);
+          }
+        }
+        // 나머지 빈 코트는 탐욕 방식으로 채움
+        for (let i = pool.length - 1; i >= 0; i--) {
+          const m = pool[i], ids = getIds(m);
+          if (ids.every(id => !used.has(id))) {
+            batch.push(m); ids.forEach(id => used.add(id)); pool.splice(i, 1);
+          }
+        }
+      } else {
+        for (let i = pool.length - 1; i >= 0; i--) {
+          const m = pool[i], ids = getIds(m);
+          if (ids.every(id => !used.has(id))) {
+            batch.push(m); ids.forEach(id => used.add(id)); pool.splice(i, 1);
+          }
         }
       }
+
       if (batch.length === 0) break;
       batch.forEach(m => (m._slot = slotNum));
       ordered.push(...batch);
@@ -857,8 +878,7 @@
     const womenM = formMatches(formSamePairs(females)).map(m => ({ ...m, type: 'women' }));
     const mixedM = formMixedMatches(males, females).map(m => ({ ...m, type: 'mixed' }));
 
-    // 역순 탐욕 선택 시 남복/여복이 슬롯0에 먼저 포함되도록 뒤에 배치
-    const matches = buildSchedule([...mixedM, ...womenM, ...menM]);
+    const matches = buildSchedule([...menM, ...womenM, ...mixedM]);
 
     const cnt = {
       men:   matches.filter(m => m.type === 'men').length,
