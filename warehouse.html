@@ -302,31 +302,73 @@ function load(slot, file) {
 }
 
 // ────────────────────────────────────────────
+// 열 인덱스 자동 탐색
+// ────────────────────────────────────────────
+function findCol(headers, keywords) {
+  const lh = headers.map(h => String(h).toLowerCase());
+  for (const kw of keywords) {
+    const idx = lh.findIndex(h => h.includes(kw));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function findHeaderRow(raw, keywords) {
+  // keywords 중 하나라도 포함된 행을 헤더로 인식
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    const row = raw[i].map(c => String(c).toLowerCase());
+    if (keywords.some(kw => row.some(c => c.includes(kw)))) return i;
+  }
+  return 0;
+}
+
+// ────────────────────────────────────────────
 // 검수 실행
 // ────────────────────────────────────────────
 function run() {
-  // ── 1차: TCT 케이터링 이동처리 행, F열(idx=5) 이동수량, K열(idx=10) 품목명
-  //         헤더: 0행 기준
-  const moveMap  = {};  // 품목명 → 이동수량 합
-  const codeMap  = {};  // 품목명 → 품목코드
-  for (let i = 1; i < rawA.length; i++) {
+  // ── 1차: 헤더 자동 탐색 후 비고/이동수량/품목명/품목코드 열 찾기
+  const hRowA = findHeaderRow(rawA, ['비고','이동수량','품목명','품목코드']);
+  const hdA   = rawA[hRowA].map(c => String(c));
+  const iNote = findCol(hdA, ['비고']);
+  const iQtyA = findCol(hdA, ['이동수량']);
+  const iName = findCol(hdA, ['품목명']);
+  const iCode = findCol(hdA, ['품목코드']);
+
+  if (iNote < 0 || iQtyA < 0 || iName < 0) {
+    alert('1차 파일에서 필요한 열(비고, 이동수량, 품목명)을 찾지 못했습니다.\n실제 헤더: ' + hdA.slice(0,15).join(', '));
+    return;
+  }
+
+  const moveMap = {};
+  const codeMap = {};
+  for (let i = hRowA + 1; i < rawA.length; i++) {
     const row  = rawA[i];
-    const note = String(row[8] || '');
+    const note = String(row[iNote] || '');
     if (!note.includes('TCT 케이터링 이동처리')) continue;
-    const name = String(row[10] || '').trim();
-    const qty  = parseFloat(row[5]) || 0;
-    const code = String(row[9] || '').trim();
+    const name = String(row[iName] || '').trim();
+    const qty  = parseFloat(row[iQtyA]) || 0;
+    const code = iCode >= 0 ? String(row[iCode] || '').trim() : '-';
     if (!name) continue;
     moveMap[name] = (moveMap[name] || 0) + qty;
     codeMap[name] = code;
   }
 
-  // ── 2차: 헤더=2행(idx=2), H열(idx=7) 품목명, K열(idx=10) 수량÷2
+  // ── 2차: 헤더 자동 탐색 (제품명/품목명, 수량 열 찾기)
+  const hRowB = findHeaderRow(rawB, ['제품명','품목명','수량','배송일']);
+  const hdB   = rawB[hRowB].map(c => String(c));
+  const iNameB = findCol(hdB, ['제품명','품목명']);
+  const iQtyB  = findCol(hdB, ['수량']);
+
+  if (iNameB < 0 || iQtyB < 0) {
+    alert('2차 파일에서 필요한 열(제품명/품목명, 수량)을 찾지 못했습니다.\n실제 헤더: ' + hdB.slice(0,15).join(', '));
+    return;
+  }
+
   const workMap = {};
-  for (let i = 3; i < rawB.length; i++) {  // 데이터 4행부터 (idx=3)
+  for (let i = hRowB + 1; i < rawB.length; i++) {
     const row  = rawB[i];
-    const name = String(row[7] || '').trim();
-    const qty  = parseFloat(row[10]);
+    const name = String(row[iNameB] || '').trim();
+    const qty  = parseFloat(row[iQtyB]);
     if (!name || isNaN(qty)) continue;
     workMap[name] = (workMap[name] || 0) + qty / 2;
   }
