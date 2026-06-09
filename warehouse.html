@@ -3,1003 +3,474 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>창고이동검수 자동화</title>
+  <title>창고이동검수</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --primary: #2563eb;
-      --primary-dark: #1d4ed8;
       --success: #16a34a;
-      --danger: #dc2626;
+      --danger:  #dc2626;
       --warning: #d97706;
-      --bg: #f1f5f9;
-      --card: #ffffff;
-      --border: #e2e8f0;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --radius: 12px;
-      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --bg:      #f1f5f9;
+      --card:    #ffffff;
+      --border:  #e2e8f0;
+      --text:    #1e293b;
+      --muted:   #64748b;
+      --radius:  12px;
     }
+    body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-    body {
-      font-family: 'Segoe UI', -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
-
+    /* ── 헤더 ── */
     header {
       background: var(--primary);
-      color: white;
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+      color: #fff;
+      padding: 16px 28px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 10px rgba(37,99,235,.3);
     }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p  { font-size: 12px; opacity: .8; margin-top: 2px; }
 
-    header h1 { font-size: 20px; font-weight: 700; }
-    header span { font-size: 13px; opacity: 0.8; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
 
-    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-
-    .step-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    @media (max-width: 700px) {
-      .step-grid { grid-template-columns: 1fr; }
-    }
+    /* ── 업로드 카드 ── */
+    .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    @media(max-width:640px){ .upload-row { grid-template-columns: 1fr; } }
 
     .card {
       background: var(--card);
-      border-radius: var(--radius);
       border: 1px solid var(--border);
-      box-shadow: var(--shadow);
+      border-radius: var(--radius);
       padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
     }
-
-    .card-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .card-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .07em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
     }
-
     .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: white;
-      font-size: 12px;
-      font-weight: 700;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--primary); color: #fff;
+      font-size: 11px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
     }
 
-    /* Drop Zone */
     .drop-zone {
       border: 2px dashed var(--border);
       border-radius: 10px;
-      padding: 32px 20px;
+      padding: 28px 16px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.2s;
       background: #f8fafc;
+      transition: all .18s;
       position: relative;
     }
-    .drop-zone:hover, .drop-zone.dragover {
-      border-color: var(--primary);
-      background: #eff6ff;
-    }
-    .drop-zone input[type="file"] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-    }
-    .drop-icon { font-size: 36px; margin-bottom: 8px; }
-    .drop-label { font-size: 14px; color: var(--text-muted); }
-    .drop-label strong { color: var(--primary); }
-    .file-info {
-      margin-top: 10px;
-      padding: 8px 12px;
-      background: #eff6ff;
-      border-radius: 8px;
-      font-size: 13px;
-      color: var(--primary);
-      display: none;
-      align-items: center;
-      gap: 6px;
-    }
-    .file-info.visible { display: flex; }
+    .drop-zone:hover, .drop-zone.over { border-color: var(--primary); background: #eff6ff; }
+    .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon { font-size: 32px; }
+    .drop-hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .drop-hint strong { color: var(--primary); }
 
-    /* Column Mapping */
-    .mapping-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 8px;
+    .file-tag {
+      display: none; margin-top: 10px;
+      background: #eff6ff; border-radius: 8px;
+      padding: 7px 12px; font-size: 13px; color: var(--primary);
+      align-items: center; gap: 6px;
     }
+    .file-tag.on { display: flex; }
 
-    .field-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .field-row label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-    .field-row select, .field-row input {
-      padding: 7px 10px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 13px;
-      color: var(--text);
-      background: white;
-      outline: none;
-    }
-    .field-row select:focus, .field-row input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-    }
-
-    /* Run Button */
+    /* ── 실행 버튼 ── */
     #runBtn {
-      width: 100%;
-      padding: 14px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      width: 100%; padding: 15px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: background .18s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-    #runBtn:hover { background: var(--primary-dark); }
+    #runBtn:hover:not(:disabled) { background: #1d4ed8; }
     #runBtn:disabled { background: #94a3b8; cursor: not-allowed; }
 
-    /* Summary Stats */
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    @media (max-width: 600px) {
-      .stats-row { grid-template-columns: repeat(2, 1fr); }
-    }
+    /* ── 결과 섹션 ── */
+    #result { display: none; margin-top: 28px; }
+    #result.on { display: block; }
 
-    .stat-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      padding: 16px;
-      text-align: center;
+    /* 통계 카드 */
+    .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+    @media(max-width:500px){ .stat-row { grid-template-columns: 1fr 1fr; } }
+    .stat {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 16px; text-align: center;
     }
-    .stat-num { font-size: 28px; font-weight: 700; }
-    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .stat-card.ok .stat-num { color: var(--success); }
-    .stat-card.err .stat-num { color: var(--danger); }
-    .stat-card.warn .stat-num { color: var(--warning); }
-    .stat-card.total .stat-num { color: var(--primary); }
+    .stat .num { font-size: 32px; font-weight: 800; line-height: 1; }
+    .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .stat.total .num { color: var(--primary); }
+    .stat.ok    .num { color: var(--success); }
+    .stat.bad   .num { color: var(--danger); }
 
-    /* Filter Bar */
-    .filter-bar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-      align-items: center;
+    /* 탭 */
+    .tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+    .tab {
+      flex: 1; padding: 10px 6px; border: none; background: #fff;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border-right: 1px solid var(--border); transition: all .15s;
+      color: var(--muted);
     }
-    .filter-btn {
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: white;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-    .filter-btn.ok.active { background: var(--success); border-color: var(--success); }
-    .filter-btn.err.active { background: var(--danger); border-color: var(--danger); }
-    .filter-btn.warn.active { background: var(--warning); border-color: var(--warning); }
+    .tab:last-child { border-right: none; }
+    .tab.active { background: var(--primary); color: #fff; }
+    .tab.ok.active  { background: var(--success); }
+    .tab.bad.active { background: var(--danger); }
 
-    .search-input {
-      flex: 1;
-      min-width: 180px;
-      padding: 7px 12px;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      font-size: 13px;
-      outline: none;
+    /* 검색 */
+    .search-bar {
+      width: 100%; padding: 9px 14px; margin-bottom: 12px;
+      border: 1px solid var(--border); border-radius: 8px;
+      font-size: 13px; outline: none;
     }
-    .search-input:focus { border-color: var(--primary); }
+    .search-bar:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
 
-    /* Table */
-    .table-wrap {
-      overflow-x: auto;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      font-size: 13px;
-    }
+    /* 테이블 */
+    .tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
     thead { background: #f8fafc; }
-    thead th {
-      padding: 10px 14px;
-      text-align: left;
-      font-weight: 600;
-      color: var(--text-muted);
-      border-bottom: 2px solid var(--border);
-      white-space: nowrap;
-    }
-    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    thead th { padding: 10px 14px; text-align: left; font-weight: 600; color: var(--muted); border-bottom: 2px solid var(--border); white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: #f8fafc; }
-    tbody td { padding: 10px 14px; }
+    tbody td { padding: 9px 14px; }
 
-    .status-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap;
     }
-    .chip-ok { background: #dcfce7; color: #15803d; }
-    .chip-err { background: #fee2e2; color: #b91c1c; }
-    .chip-warn { background: #fef3c7; color: #b45309; }
-    .chip-missing { background: #f1f5f9; color: #64748b; }
+    .chip-ok   { background: #dcfce7; color: #15803d; }
+    .chip-bad  { background: #fee2e2; color: #b91c1c; }
+    .diff-plus { color: var(--danger); font-weight: 700; }
+    .diff-minus{ color: var(--warning); font-weight: 700; }
+    .diff-zero { color: var(--success); }
 
-    .diff-cell { }
-    .diff-cell.bad { color: var(--danger); font-weight: 700; }
-    .diff-cell.good { color: var(--success); }
+    .row-count { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
-    /* Export Button */
+    /* 내보내기 */
     #exportBtn {
-      padding: 9px 20px;
-      background: var(--success);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      display: none;
+      padding: 9px 20px; background: var(--success); color: #fff;
+      border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; float: right; margin-bottom: 10px;
     }
-    #exportBtn.visible { display: inline-block; }
+    #exportBtn:hover { background: #15803d; }
 
-    /* Issues Panel */
-    .issues-panel {
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    .issues-panel h3 { font-size: 14px; font-weight: 700; color: #c2410c; margin-bottom: 10px; }
-    .issue-item {
-      font-size: 13px;
-      color: #9a3412;
-      padding: 4px 0;
-      border-bottom: 1px solid #fed7aa;
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-    }
-    .issue-item:last-child { border-bottom: none; }
-    .issue-icon { flex-shrink: 0; }
-
-    /* Hidden */
-    #resultsSection { display: none; }
-    #resultsSection.visible { display: block; }
-
-    .empty-state {
-      text-align: center;
-      padding: 48px 20px;
-      color: var(--text-muted);
-    }
-    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
-
-    .progress-wrap {
-      display: none;
-      margin-top: 12px;
-    }
-    .progress-wrap.visible { display: block; }
-    .progress-bar {
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--primary);
-      border-radius: 3px;
-      transition: width 0.3s;
-    }
-    .progress-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-
-    .mode-tabs {
-      display: flex;
-      gap: 0;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 16px;
-    }
-    .mode-tab {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      background: white;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
-      color: var(--text-muted);
-      border-right: 1px solid var(--border);
-    }
-    .mode-tab:last-child { border-right: none; }
-    .mode-tab.active { background: var(--primary); color: white; }
-
-    #singleModeHelp, #dualModeHelp { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .clearfix::after { content: ''; display: table; clear: both; }
   </style>
 </head>
 <body>
 
 <header>
-  <div style="font-size:24px">🏭</div>
+  <div style="font-size:26px">🏭</div>
   <div>
     <h1>창고이동검수 자동화</h1>
-    <span>파일 업로드 → 자동 검수 → 결과 확인</span>
+    <p>1차 파일(이동처리) × 2차 파일(작업내역) 수량 비교</p>
   </div>
 </header>
 
-<div class="container">
+<div class="wrap">
 
-  <!-- Mode Selection -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-title">검수 모드 선택</div>
-    <div class="mode-tabs">
-      <button class="mode-tab active" onclick="setMode('dual')">📂 두 파일 비교 (이동지시 vs 실재고)</button>
-      <button class="mode-tab" onclick="setMode('single')">📄 단일 파일 검수</button>
-    </div>
-    <div id="dualModeHelp">이동지시서 파일과 실재고/스캔 결과 파일을 각각 업로드하여 비교 검수합니다.</div>
-    <div id="singleModeHelp" style="display:none">하나의 파일에서 수량·코드·위치 이상 여부를 검수합니다.</div>
-  </div>
+  <!-- 파일 업로드 -->
+  <div class="upload-row">
 
-  <!-- File Upload & Settings -->
-  <div class="step-grid" id="uploadGrid">
-    <!-- File A: 이동지시서 -->
-    <div class="card" id="fileACard">
-      <div class="card-title"><span class="badge">1</span> 이동지시서 (기준 데이터)</div>
-
-      <div class="drop-zone" id="dropA" ondragover="onDragOver(event,'A')" ondragleave="onDragLeave('A')" ondrop="onDrop(event,'A')">
-        <input type="file" id="fileA" accept=".xlsx,.xls,.csv" onchange="loadFile('A', this.files[0])">
+    <!-- 1차: 133431 이동처리 -->
+    <div class="card">
+      <div class="card-label"><span class="badge">1</span> 1차 파일 — 이동처리 (133431)</div>
+      <div class="drop-zone" id="dropA"
+           ondragover="ev(event,'A')" ondragleave="lv('A')" ondrop="dp(event,'A')">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="load('A',this.files[0])">
         <div class="drop-icon">📋</div>
-        <div class="drop-label"><strong>클릭</strong>하거나 파일을 끌어다 놓으세요<br><small>Excel (.xlsx, .xls) / CSV</small></div>
+        <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
       </div>
-      <div class="file-info" id="fileInfoA">📄 <span id="fileNameA"></span></div>
-
-      <div id="mappingA" style="display:none; margin-top:14px">
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600">열 매핑 (이동지시서)</div>
-        <div class="mapping-grid">
-          <div class="field-row"><label>품목코드/바코드 열</label><select id="aColCode"></select></div>
-          <div class="field-row"><label>품목명 열</label><select id="aColName"></select></div>
-          <div class="field-row"><label>지시 수량 열</label><select id="aColQty"></select></div>
-          <div class="field-row"><label>출발 창고 열</label><select id="aColFrom"></select></div>
-          <div class="field-row"><label>도착 창고 열</label><select id="aColTo"></select></div>
-          <div class="field-row"><label>시작 행 (헤더 행 번호)</label><input type="number" id="aHeaderRow" value="1" min="1"></div>
-        </div>
+      <div class="file-tag" id="tagA">📄 <span id="nameA"></span></div>
+      <div style="margin-top:14px; font-size:12px; color:var(--muted); line-height:1.6">
+        <b>적용 기준</b><br>
+        • I열 비고 = <code>TCT 케이터링 이동처리</code> 포함 행만<br>
+        • F열 이동수량 합산
       </div>
     </div>
 
-    <!-- File B: 실재고 -->
-    <div class="card" id="fileBCard">
-      <div class="card-title" id="fileBTitle"><span class="badge">2</span> 실재고/스캔 결과</div>
-      <div id="fileBSubtitle" style="font-size:12px;color:var(--text-muted);margin-bottom:12px">실제 이동이 완료된 후 스캔한 결과 파일</div>
-
-      <div class="drop-zone" id="dropB" ondragover="onDragOver(event,'B')" ondragleave="onDragLeave('B')" ondrop="onDrop(event,'B')">
-        <input type="file" id="fileB" accept=".xlsx,.xls,.csv" onchange="loadFile('B', this.files[0])">
+    <!-- 2차: 작업내역 -->
+    <div class="card">
+      <div class="card-label"><span class="badge" style="background:#16a34a">2</span> 2차 파일 — 작업내역</div>
+      <div class="drop-zone" id="dropB"
+           ondragover="ev(event,'B')" ondragleave="lv('B')" ondrop="dp(event,'B')">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="load('B',this.files[0])">
         <div class="drop-icon">📦</div>
-        <div class="drop-label"><strong>클릭</strong>하거나 파일을 끌어다 놓으세요<br><small>Excel (.xlsx, .xls) / CSV</small></div>
+        <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
       </div>
-      <div class="file-info" id="fileInfoB">📄 <span id="fileNameB"></span></div>
-
-      <div id="mappingB" style="display:none; margin-top:14px">
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600">열 매핑 (실재고)</div>
-        <div class="mapping-grid">
-          <div class="field-row"><label>품목코드/바코드 열</label><select id="bColCode"></select></div>
-          <div class="field-row"><label>품목명 열</label><select id="bColName"></select></div>
-          <div class="field-row"><label>실제 수량 열</label><select id="bColQty"></select></div>
-          <div class="field-row"><label>창고 위치 열</label><select id="bColLoc"></select></div>
-          <div class="field-row"><label>시작 행 (헤더 행 번호)</label><input type="number" id="bHeaderRow" value="1" min="1"></div>
-        </div>
+      <div class="file-tag" id="tagB">📄 <span id="nameB"></span></div>
+      <div style="margin-top:14px; font-size:12px; color:var(--muted); line-height:1.6">
+        <b>적용 기준</b><br>
+        • 3행 = 헤더, H열 품목명, K열 수량<br>
+        • K열 수량 ÷ 2 합산
       </div>
     </div>
   </div>
 
-  <!-- Single Mode Column Settings -->
-  <div class="card" id="singleSettings" style="display:none; margin-bottom:16px">
-    <div class="card-title"><span class="badge">2</span> 검수 기준 설정</div>
-    <div class="mapping-grid">
-      <div class="field-row"><label>품목코드 열</label><select id="sColCode"></select></div>
-      <div class="field-row"><label>품목명 열</label><select id="sColName"></select></div>
-      <div class="field-row"><label>지시수량 열</label><select id="sColOrderQty"></select></div>
-      <div class="field-row"><label>실수량 열</label><select id="sColActualQty"></select></div>
-      <div class="field-row"><label>출발창고 열</label><select id="sColFrom"></select></div>
-      <div class="field-row"><label>도착창고 열</label><select id="sColTo"></select></div>
-      <div class="field-row"><label>시작 행 (헤더 행 번호)</label><input type="number" id="sHeaderRow" value="1" min="1"></div>
-    </div>
-  </div>
+  <button id="runBtn" onclick="run()" disabled>🔍 검수 시작</button>
 
-  <!-- Run Button -->
-  <button id="runBtn" onclick="runInspection()" disabled>
-    🔍 검수 시작
-  </button>
-  <div class="progress-wrap" id="progressWrap">
-    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    <div class="progress-label" id="progressLabel">처리 중...</div>
-  </div>
-
-  <!-- Results -->
-  <div id="resultsSection">
+  <!-- 결과 -->
+  <div id="result">
     <div style="height:24px"></div>
 
-    <!-- Summary -->
-    <div class="stats-row" id="statsRow"></div>
-
-    <!-- Issues -->
-    <div class="issues-panel" id="issuesPanel" style="display:none">
-      <h3>⚠️ 검수 이상 항목 요약</h3>
-      <div id="issuesList"></div>
+    <!-- 통계 -->
+    <div class="stat-row">
+      <div class="stat total"><div class="num" id="sTotal">0</div><div class="lbl">전체 품목 수</div></div>
+      <div class="stat ok">  <div class="num" id="sOk">0</div>   <div class="lbl">✅ 일치</div></div>
+      <div class="stat bad"> <div class="num" id="sBad">0</div>  <div class="lbl">❌ 불일치</div></div>
     </div>
 
-    <!-- Table Controls -->
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px">
-      <div class="filter-bar" id="filterBar"></div>
-      <button id="exportBtn" onclick="exportExcel()">📥 Excel 내보내기</button>
+    <!-- 탭 + 내보내기 -->
+    <div class="clearfix">
+      <button id="exportBtn" onclick="exportXlsx()">📥 Excel 내보내기</button>
     </div>
-    <input class="search-input" id="searchInput" placeholder="🔍 품목코드, 품목명 검색..." oninput="applyFilter()" style="width:100%; margin-bottom:12px; border-radius:8px; padding:9px 14px">
+    <div class="tabs">
+      <button class="tab active"    onclick="setTab('all')"  id="tabAll">전체</button>
+      <button class="tab ok"        onclick="setTab('ok')"   id="tabOk" >✅ 일치</button>
+      <button class="tab bad"       onclick="setTab('bad')"  id="tabBad">❌ 불일치</button>
+      <button class="tab"           onclick="setTab('miss')" id="tabMiss">🔍 1차 미등록</button>
+    </div>
 
-    <!-- Table -->
-    <div class="table-wrap">
-      <table id="resultTable">
-        <thead id="resultHead"></thead>
-        <tbody id="resultBody"></tbody>
+    <input class="search-bar" id="search" placeholder="🔍 품목명 검색..." oninput="render()">
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>품목명</th>
+            <th>품목코드 (1차)</th>
+            <th>이동수량 (F열)</th>
+            <th>작업수량÷2 (K열)</th>
+            <th>차이</th>
+            <th>결과</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
       </table>
     </div>
-    <div style="font-size:12px; color:var(--text-muted); margin-top:8px" id="rowCount"></div>
+    <div class="row-count" id="rowCount"></div>
   </div>
 
 </div>
 
 <script>
-// ============================================================
-// State
-// ============================================================
-let mode = 'dual';
-let dataA = [], dataB = [], dataSingle = [];
-let headersA = [], headersB = [], headersSingle = [];
-let allResults = [];
-let currentFilter = 'all';
+// ────────────────────────────────────────────
+// 상태
+// ────────────────────────────────────────────
+let rawA = [], rawB = [];
+let allRows = [];
+let currentTab = 'all';
 
-// ============================================================
-// Mode
-// ============================================================
-function setMode(m) {
-  mode = m;
-  document.querySelectorAll('.mode-tab').forEach((t,i) => {
-    t.classList.toggle('active', (i===0 && m==='dual') || (i===1 && m==='single'));
-  });
-  document.getElementById('dualModeHelp').style.display = m==='dual' ? '' : 'none';
-  document.getElementById('singleModeHelp').style.display = m==='single' ? '' : 'none';
-  document.getElementById('uploadGrid').style.display = m==='dual' ? '' : 'none';
-  document.getElementById('fileBCard').style.display = m==='dual' ? '' : 'none';
-  document.getElementById('fileACard').style.display = m==='dual' ? '' : 'none';
-  document.getElementById('singleSettings').style.display = m==='single' ? '' : 'none';
+// ────────────────────────────────────────────
+// 드래그&드롭
+// ────────────────────────────────────────────
+function ev(e, s) { e.preventDefault(); document.getElementById('drop'+s).classList.add('over'); }
+function lv(s)    { document.getElementById('drop'+s).classList.remove('over'); }
+function dp(e, s) { e.preventDefault(); lv(s); const f = e.dataTransfer.files[0]; if(f) load(s,f); }
 
-  // Re-show single file upload in single mode using fileA slot
-  if (m === 'single') {
-    document.getElementById('uploadGrid').style.display = 'block';
-    document.getElementById('fileBCard').style.display = 'none';
-    document.getElementById('fileACard').querySelector('.card-title').innerHTML = '<span class="badge">1</span> 검수 파일 업로드';
-  } else {
-    document.getElementById('fileACard').querySelector('.card-title').innerHTML = '<span class="badge">1</span> 이동지시서 (기준 데이터)';
-  }
-  checkReady();
-}
-
-// ============================================================
-// Drag & Drop
-// ============================================================
-function onDragOver(e, slot) {
-  e.preventDefault();
-  document.getElementById('drop'+slot).classList.add('dragover');
-}
-function onDragLeave(slot) {
-  document.getElementById('drop'+slot).classList.remove('dragover');
-}
-function onDrop(e, slot) {
-  e.preventDefault();
-  document.getElementById('drop'+slot).classList.remove('dragover');
-  const file = e.dataTransfer.files[0];
-  if (file) loadFile(slot, file);
-}
-
-// ============================================================
-// File Loading
-// ============================================================
-function loadFile(slot, file) {
+// ────────────────────────────────────────────
+// 파일 로드
+// ────────────────────────────────────────────
+function load(slot, file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
-    const ab = e.target.result;
+  reader.onload = e => {
     let wb;
-    try {
-      wb = XLSX.read(ab, { type: 'array' });
-    } catch(err) {
-      alert('파일을 읽을 수 없습니다: ' + err.message);
-      return;
-    }
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
-    const infoEl = document.getElementById('fileInfo'+slot);
-    const nameEl = document.getElementById('fileName'+slot);
-    infoEl.classList.add('visible');
-    nameEl.textContent = file.name + ' (' + (raw.length-1) + '행)';
-
+    try { wb = XLSX.read(e.target.result, {type:'array'}); }
+    catch(err) { alert('파일 읽기 오류: ' + err.message); return; }
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     if (slot === 'A') {
-      headersA = getHeaders(raw, parseInt(document.getElementById('aHeaderRow').value)||1);
-      dataA = getRows(raw, parseInt(document.getElementById('aHeaderRow').value)||1);
-      populateSelects(['aColCode','aColName','aColQty','aColFrom','aColTo'], headersA);
-      autoMap(['aColCode','aColName','aColQty','aColFrom','aColTo'], headersA);
-      document.getElementById('mappingA').style.display = '';
-
-      if (mode === 'single') {
-        headersSingle = headersA;
-        dataSingle = dataA;
-        populateSelects(['sColCode','sColName','sColOrderQty','sColActualQty','sColFrom','sColTo'], headersA);
-        autoMapSingle(headersA);
-        document.getElementById('singleSettings').style.display = '';
-      }
+      rawA = raw;
+      document.getElementById('nameA').textContent = file.name + ' (' + (raw.length-1) + '행)';
     } else {
-      headersB = getHeaders(raw, parseInt(document.getElementById('bHeaderRow').value)||1);
-      dataB = getRows(raw, parseInt(document.getElementById('bHeaderRow').value)||1);
-      populateSelects(['bColCode','bColName','bColQty','bColLoc'], headersB);
-      autoMap(['bColCode','bColName','bColQty','bColLoc'], headersB);
-      document.getElementById('mappingB').style.display = '';
+      rawB = raw;
+      document.getElementById('nameB').textContent = file.name + ' (' + (raw.length-1) + '행)';
     }
-    checkReady();
+    document.getElementById('tag'+slot).classList.add('on');
+    lv(slot);
+    document.getElementById('runBtn').disabled = !(rawA.length && rawB.length);
   };
   reader.readAsArrayBuffer(file);
 }
 
-function getHeaders(raw, headerRow) {
-  const idx = Math.max(0, headerRow - 1);
-  return raw[idx] ? raw[idx].map(String) : [];
-}
+// ────────────────────────────────────────────
+// 검수 실행
+// ────────────────────────────────────────────
+function run() {
+  // ── 1차: TCT 케이터링 이동처리 행, F열(idx=5) 이동수량, K열(idx=10) 품목명
+  //         헤더: 0행 기준
+  const moveMap  = {};  // 품목명 → 이동수량 합
+  const codeMap  = {};  // 품목명 → 품목코드
+  for (let i = 1; i < rawA.length; i++) {
+    const row  = rawA[i];
+    const note = String(row[8] || '');
+    if (!note.includes('TCT 케이터링 이동처리')) continue;
+    const name = String(row[10] || '').trim();
+    const qty  = parseFloat(row[5]) || 0;
+    const code = String(row[9] || '').trim();
+    if (!name) continue;
+    moveMap[name] = (moveMap[name] || 0) + qty;
+    codeMap[name] = code;
+  }
 
-function getRows(raw, headerRow) {
-  const idx = Math.max(0, headerRow - 1);
-  const headers = raw[idx] ? raw[idx].map(String) : [];
+  // ── 2차: 헤더=2행(idx=2), H열(idx=7) 품목명, K열(idx=10) 수량÷2
+  const workMap = {};
+  for (let i = 3; i < rawB.length; i++) {  // 데이터 4행부터 (idx=3)
+    const row  = rawB[i];
+    const name = String(row[7] || '').trim();
+    const qty  = parseFloat(row[10]);
+    if (!name || isNaN(qty)) continue;
+    workMap[name] = (workMap[name] || 0) + qty / 2;
+  }
+
+  // ── 비교 (작업내역 기준)
   const rows = [];
-  for (let i = idx + 1; i < raw.length; i++) {
-    if (raw[i].every(c => c === '' || c === null || c === undefined)) continue;
-    const obj = {};
-    headers.forEach((h, j) => { obj[h] = raw[i][j] ?? ''; });
-    rows.push(obj);
-  }
-  return rows;
-}
-
-function populateSelects(ids, headers) {
-  const opts = ['(선택안함)', ...headers];
-  ids.forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    sel.innerHTML = opts.map((h,i) => `<option value="${i===0?'':h}">${h}</option>`).join('');
-  });
-}
-
-const keywordMap = {
-  aColCode: ['코드','바코드','품번','sku','code','barcode','item'],
-  aColName: ['명','이름','품목','상품','name','product','item'],
-  aColQty: ['지시','수량','qty','quantity','order'],
-  aColFrom: ['출발','from','출고','송신','source'],
-  aColTo: ['도착','to','입고','수신','dest','목적'],
-  bColCode: ['코드','바코드','품번','sku','code','barcode','item'],
-  bColName: ['명','이름','품목','상품','name','product','item'],
-  bColQty: ['수량','실','qty','quantity','actual','scan'],
-  bColLoc: ['위치','창고','로케이션','loc','warehouse','location','zone'],
-};
-const singleKeywordMap = {
-  sColCode: ['코드','바코드','품번','sku','code','barcode'],
-  sColName: ['명','이름','품목','상품','name','product'],
-  sColOrderQty: ['지시','주문','order','ordered'],
-  sColActualQty: ['실','검수','actual','scan','receive'],
-  sColFrom: ['출발','from','출고'],
-  sColTo: ['도착','to','입고'],
-};
-
-function autoMap(ids, headers) {
-  ids.forEach(id => {
-    const keywords = keywordMap[id] || [];
-    const lh = headers.map(h => h.toLowerCase());
-    for (const kw of keywords) {
-      const idx = lh.findIndex(h => h.includes(kw));
-      if (idx >= 0) {
-        const sel = document.getElementById(id);
-        if (sel) sel.value = headers[idx];
-        break;
-      }
+  for (const [name, workQty] of Object.entries(workMap)) {
+    const moveQty = moveMap[name];
+    const code    = codeMap[name] || '-';
+    let status, diff;
+    if (moveQty === undefined) {
+      status = 'miss'; diff = null;
+    } else {
+      diff = Math.round((moveQty - workQty) * 1000) / 1000;
+      status = Math.abs(diff) < 0.001 ? 'ok' : 'bad';
     }
-  });
-}
-
-function autoMapSingle(headers) {
-  Object.entries(singleKeywordMap).forEach(([id, keywords]) => {
-    const lh = headers.map(h => h.toLowerCase());
-    for (const kw of keywords) {
-      const idx = lh.findIndex(h => h.includes(kw));
-      if (idx >= 0) {
-        const sel = document.getElementById(id);
-        if (sel) sel.value = headers[idx];
-        break;
-      }
-    }
-  });
-}
-
-function checkReady() {
-  const btn = document.getElementById('runBtn');
-  if (mode === 'dual') {
-    btn.disabled = !(dataA.length > 0 && dataB.length > 0);
-  } else {
-    btn.disabled = !(dataSingle.length > 0);
-  }
-}
-
-// ============================================================
-// Inspection
-// ============================================================
-function runInspection() {
-  setProgress(true, '데이터 분석 중...', 20);
-  setTimeout(() => {
-    try {
-      if (mode === 'dual') runDualInspection();
-      else runSingleInspection();
-    } catch(e) {
-      setProgress(false);
-      alert('검수 중 오류: ' + e.message);
-    }
-  }, 50);
-}
-
-function runDualInspection() {
-  const aC = v('aColCode'), aN = v('aColName'), aQ = v('aColQty');
-  const aF = v('aColFrom'), aT = v('aColTo');
-  const bC = v('bColCode'), bN = v('bColName'), bQ = v('bColQty'), bL = v('bColLoc');
-
-  if (!aC || !bC) { alert('품목코드 열을 선택해주세요.'); setProgress(false); return; }
-
-  setProgress(true, '이동지시서 처리 중...', 40);
-
-  // Build map from actual data (B)
-  const bMap = {};
-  dataB.forEach(row => {
-    const code = String(row[bC] || '').trim();
-    if (!code) return;
-    if (!bMap[code]) bMap[code] = [];
-    bMap[code].push(row);
-  });
-
-  const results = [];
-
-  dataA.forEach(rowA => {
-    const code = String(rowA[aC] || '').trim();
-    const name = aN ? String(rowA[aN] || '') : '';
-    const orderQty = parseFloat(rowA[aQ]) || 0;
-    const fromWH = aF ? String(rowA[aF] || '') : '';
-    const toWH = aT ? String(rowA[aT] || '') : '';
-
-    const bRows = bMap[code] || [];
-    const actualQty = bRows.reduce((s, r) => s + (parseFloat(r[bQ]) || 0), 0);
-    const location = bL && bRows.length ? String(bRows[0][bL] || '') : '';
-
-    const issues = [];
-    if (bRows.length === 0) issues.push('실재고 미확인');
-    if (bRows.length > 0 && orderQty !== actualQty) issues.push(`수량 불일치 (지시:${orderQty} / 실:${actualQty})`);
-    if (bL && location && toWH && !location.includes(toWH) && !toWH.includes(location)) {
-      issues.push(`창고 위치 불일치 (도착:${toWH} / 실위치:${location})`);
-    }
-
-    let status = issues.length === 0 ? 'ok' : (issues.some(i => i.includes('미확인')) ? 'missing' : 'err');
-
-    results.push({
-      code, name, orderQty, actualQty,
-      diff: actualQty - orderQty,
-      fromWH, toWH, location,
-      issues, status,
-      _raw: rowA
-    });
-  });
-
-  // Check for items in B not in A
-  Object.keys(bMap).forEach(code => {
-    const inA = results.find(r => r.code === code);
-    if (!inA) {
-      const bRows = bMap[code];
-      const name = bN ? String(bRows[0][bN] || '') : '';
-      const actualQty = bRows.reduce((s, r) => s + (parseFloat(r[bQ]) || 0), 0);
-      const location = bL ? String(bRows[0][bL] || '') : '';
-      results.push({
-        code, name, orderQty: 0, actualQty,
-        diff: actualQty,
-        fromWH: '', toWH: '', location,
-        issues: ['지시서 미등록 품목'],
-        status: 'warn',
-        _raw: {}
-      });
-    }
-  });
-
-  setProgress(true, '결과 렌더링 중...', 80);
-  allResults = results;
-
-  const cols = [
-    { key: 'code', label: '품목코드' },
-    { key: 'name', label: '품목명' },
-    { key: 'orderQty', label: '지시수량' },
-    { key: 'actualQty', label: '실수량' },
-    { key: 'diff', label: '수량차이' },
-    { key: 'fromWH', label: '출발창고' },
-    { key: 'toWH', label: '도착창고' },
-    { key: 'location', label: '실위치' },
-    { key: 'issues', label: '이슈' },
-    { key: 'status', label: '검수결과' },
-  ];
-
-  setTimeout(() => {
-    renderResults(results, cols);
-    setProgress(false);
-  }, 50);
-}
-
-function runSingleInspection() {
-  const sC = v('sColCode'), sN = v('sColName');
-  const sOQ = v('sColOrderQty'), sAQ = v('sColActualQty');
-  const sF = v('sColFrom'), sT = v('sColTo');
-
-  if (!sC) { alert('품목코드 열을 선택해주세요.'); setProgress(false); return; }
-
-  setProgress(true, '단일 파일 검수 중...', 50);
-
-  const results = dataSingle.map(row => {
-    const code = String(row[sC] || '').trim();
-    const name = sN ? String(row[sN] || '') : '';
-    const orderQty = sOQ ? (parseFloat(row[sOQ]) || 0) : null;
-    const actualQty = sAQ ? (parseFloat(row[sAQ]) || 0) : null;
-    const fromWH = sF ? String(row[sF] || '') : '';
-    const toWH = sT ? String(row[sT] || '') : '';
-
-    const issues = [];
-    if (!code) issues.push('품목코드 없음');
-    if (orderQty !== null && actualQty !== null && orderQty !== actualQty) {
-      issues.push(`수량 불일치 (지시:${orderQty} / 실:${actualQty})`);
-    }
-
-    let status = issues.length === 0 ? 'ok' : 'err';
-
-    return {
-      code, name, orderQty, actualQty,
-      diff: (orderQty !== null && actualQty !== null) ? actualQty - orderQty : '',
-      fromWH, toWH, issues, status,
-      _raw: row
-    };
-  });
-
-  allResults = results;
-
-  const cols = [
-    { key: 'code', label: '품목코드' },
-    { key: 'name', label: '품목명' },
-    { key: 'orderQty', label: '지시수량' },
-    { key: 'actualQty', label: '실수량' },
-    { key: 'diff', label: '수량차이' },
-    { key: 'fromWH', label: '출발창고' },
-    { key: 'toWH', label: '도착창고' },
-    { key: 'issues', label: '이슈' },
-    { key: 'status', label: '검수결과' },
-  ];
-
-  setTimeout(() => {
-    renderResults(results, cols);
-    setProgress(false);
-  }, 50);
-}
-
-function v(id) {
-  const el = document.getElementById(id);
-  return el ? el.value : '';
-}
-
-// ============================================================
-// Render
-// ============================================================
-function renderResults(results, cols) {
-  // Stats
-  const total = results.length;
-  const okCount = results.filter(r => r.status === 'ok').length;
-  const errCount = results.filter(r => r.status === 'err' || r.status === 'missing').length;
-  const warnCount = results.filter(r => r.status === 'warn').length;
-
-  document.getElementById('statsRow').innerHTML = `
-    <div class="stat-card total"><div class="stat-num">${total}</div><div class="stat-label">전체 항목</div></div>
-    <div class="stat-card ok"><div class="stat-num">${okCount}</div><div class="stat-label">✅ 검수 완료</div></div>
-    <div class="stat-card err"><div class="stat-num">${errCount}</div><div class="stat-label">❌ 이상 발생</div></div>
-    <div class="stat-card warn"><div class="stat-num">${warnCount}</div><div class="stat-label">⚠️ 주의 항목</div></div>
-  `;
-
-  // Issues panel
-  const allIssues = results.flatMap(r => r.issues.map(i => ({ code: r.code, name: r.name, msg: i })));
-  const issuesPanel = document.getElementById('issuesPanel');
-  if (allIssues.length > 0) {
-    issuesPanel.style.display = '';
-    document.getElementById('issuesList').innerHTML = allIssues.slice(0,20).map(i =>
-      `<div class="issue-item"><span class="issue-icon">⚠️</span><span>[${i.code}] ${i.name ? i.name + ' — ' : ''}${i.msg}</span></div>`
-    ).join('') + (allIssues.length > 20 ? `<div class="issue-item" style="color:#9a3412">...외 ${allIssues.length-20}건</div>` : '');
-  } else {
-    issuesPanel.style.display = 'none';
+    rows.push({ name, code,
+      moveQty: moveQty !== undefined ? moveQty : null,
+      workQty: Math.round(workQty * 1000) / 1000,
+      diff, status });
   }
 
-  // Filter buttons
-  document.getElementById('filterBar').innerHTML = `
-    <button class="filter-btn active" onclick="setFilter('all')" id="fbAll">전체 (${total})</button>
-    <button class="filter-btn ok" onclick="setFilter('ok')" id="fbOk">✅ 완료 (${okCount})</button>
-    <button class="filter-btn err" onclick="setFilter('err')" id="fbErr">❌ 이상 (${errCount})</button>
-    <button class="filter-btn warn" onclick="setFilter('warn')" id="fbWarn">⚠️ 주의 (${warnCount})</button>
-  `;
-  currentFilter = 'all';
+  allRows = rows;
 
-  // Table header
-  document.getElementById('resultHead').innerHTML =
-    '<tr>' + cols.filter(c => c.key !== 'status' || true).map(c =>
-      `<th>${c.label}</th>`
-    ).join('') + '</tr>';
+  // 통계
+  const ok   = rows.filter(r => r.status === 'ok').length;
+  const bad  = rows.filter(r => r.status === 'bad').length;
+  const miss = rows.filter(r => r.status === 'miss').length;
+  document.getElementById('sTotal').textContent = rows.length;
+  document.getElementById('sOk').textContent    = ok;
+  document.getElementById('sBad').textContent   = bad + miss;
 
-  // Store cols globally
-  window._cols = cols;
-  applyFilter();
+  // 탭 카운트 업데이트
+  document.getElementById('tabAll').textContent  = `전체 (${rows.length})`;
+  document.getElementById('tabOk').textContent   = `✅ 일치 (${ok})`;
+  document.getElementById('tabBad').textContent  = `❌ 불일치 (${bad})`;
+  document.getElementById('tabMiss').textContent = `🔍 1차 미등록 (${miss})`;
 
-  document.getElementById('resultsSection').classList.add('visible');
-  document.getElementById('exportBtn').classList.add('visible');
-  document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+  currentTab = 'all';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tabAll').classList.add('active');
+  document.getElementById('search').value = '';
+
+  document.getElementById('result').classList.add('on');
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+  render();
 }
 
-function setFilter(f) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  const map = { all:'fbAll', ok:'fbOk', err:'fbErr', warn:'fbWarn' };
-  const el = document.getElementById(map[f]);
-  if (el) el.classList.add('active');
-  applyFilter();
+// ────────────────────────────────────────────
+// 탭 전환
+// ────────────────────────────────────────────
+function setTab(t) {
+  currentTab = t;
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  const map = {all:'tabAll', ok:'tabOk', bad:'tabBad', miss:'tabMiss'};
+  document.getElementById(map[t]).classList.add('active');
+  render();
 }
 
-function applyFilter() {
-  const search = document.getElementById('searchInput').value.toLowerCase();
-  const cols = window._cols || [];
-
-  let rows = allResults.filter(r => {
-    if (currentFilter === 'ok' && r.status !== 'ok') return false;
-    if (currentFilter === 'err' && r.status !== 'err' && r.status !== 'missing') return false;
-    if (currentFilter === 'warn' && r.status !== 'warn') return false;
-    if (search) {
-      const hay = (r.code + ' ' + (r.name||'')).toLowerCase();
-      if (!hay.includes(search)) return false;
-    }
+// ────────────────────────────────────────────
+// 렌더링
+// ────────────────────────────────────────────
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = allRows.filter(r => {
+    if (currentTab === 'ok'   && r.status !== 'ok')   return false;
+    if (currentTab === 'bad'  && r.status !== 'bad')  return false;
+    if (currentTab === 'miss' && r.status !== 'miss') return false;
+    if (q && !r.name.toLowerCase().includes(q)) return false;
     return true;
   });
 
-  const tbody = document.getElementById('resultBody');
-  if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:32px;color:var(--text-muted)">해당 항목이 없습니다</td></tr>';
+  const tbody = document.getElementById('tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">해당 항목이 없습니다</td></tr>';
     document.getElementById('rowCount').textContent = '';
     return;
   }
 
-  tbody.innerHTML = rows.map(r => {
-    const statusChip = statusHtml(r.status);
-    return '<tr>' + cols.map(c => {
-      if (c.key === 'status') return `<td>${statusChip}</td>`;
-      if (c.key === 'issues') return `<td>${r.issues.length ? r.issues.map(i=>`<span class="status-chip chip-err" style="font-size:11px;margin:1px">${i}</span>`).join(' ') : '<span style="color:var(--text-muted)">—</span>'}</td>`;
-      if (c.key === 'diff') {
-        const d = r.diff;
-        if (d === '' || d === undefined || d === null) return '<td>—</td>';
-        const cls = d === 0 ? 'good' : 'bad';
-        return `<td class="diff-cell ${cls}">${d > 0 ? '+' : ''}${d}</td>`;
-      }
-      const val = r[c.key];
-      if (val === null || val === undefined || val === '') return '<td>—</td>';
-      return `<td>${val}</td>`;
-    }).join('') + '</tr>';
+  tbody.innerHTML = filtered.sort((a,b) => {
+    // 불일치 먼저, 미등록, 일치 순
+    const order = {bad:0, miss:1, ok:2};
+    return order[a.status] - order[b.status] || a.name.localeCompare(b.name, 'ko');
+  }).map(r => {
+    const chipHtml = r.status === 'ok'
+      ? '<span class="chip chip-ok">✅ 일치</span>'
+      : r.status === 'miss'
+      ? '<span class="chip" style="background:#f1f5f9;color:#64748b">🔍 1차 미등록</span>'
+      : '<span class="chip chip-bad">❌ 불일치</span>';
+
+    const moveCell = r.moveQty !== null ? r.moveQty : '<span style="color:var(--muted)">—</span>';
+    let diffCell = '—';
+    if (r.diff !== null) {
+      if (Math.abs(r.diff) < 0.001) diffCell = '<span class="diff-zero">0</span>';
+      else if (r.diff > 0) diffCell = `<span class="diff-plus">+${r.diff}</span>`;
+      else                 diffCell = `<span class="diff-minus">${r.diff}</span>`;
+    }
+    return `<tr>
+      <td>${r.name}</td>
+      <td style="color:var(--muted)">${r.code}</td>
+      <td>${moveCell}</td>
+      <td>${r.workQty}</td>
+      <td>${diffCell}</td>
+      <td>${chipHtml}</td>
+    </tr>`;
   }).join('');
 
-  document.getElementById('rowCount').textContent = `${rows.length}행 표시 중 (전체 ${allResults.length}행)`;
+  document.getElementById('rowCount').textContent = `${filtered.length}건 표시 중 / 전체 ${allRows.length}건`;
 }
 
-function statusHtml(s) {
-  if (s === 'ok') return '<span class="status-chip chip-ok">✅ 정상</span>';
-  if (s === 'err') return '<span class="status-chip chip-err">❌ 이상</span>';
-  if (s === 'warn') return '<span class="status-chip chip-warn">⚠️ 주의</span>';
-  if (s === 'missing') return '<span class="status-chip chip-missing">🔍 미확인</span>';
-  return s;
-}
+// ────────────────────────────────────────────
+// Excel 내보내기
+// ────────────────────────────────────────────
+function exportXlsx() {
+  const statusLabel = {ok:'✅ 일치', bad:'❌ 불일치', miss:'🔍 1차 미등록'};
+  const header = ['품목명','품목코드(1차)','이동수량(F열)','작업수량÷2(K열)','차이(이동-작업/2)','결과'];
+  const data = allRows.map(r => [
+    r.name, r.code,
+    r.moveQty !== null ? r.moveQty : '',
+    r.workQty,
+    r.diff !== null ? r.diff : '',
+    statusLabel[r.status]
+  ]);
 
-// ============================================================
-// Export
-// ============================================================
-function exportExcel() {
-  const cols = window._cols || [];
-  const header = cols.map(c => c.label);
-  const statusText = { ok:'정상', err:'이상', warn:'주의', missing:'미확인' };
-
-  const rows = allResults.map(r =>
-    cols.map(c => {
-      if (c.key === 'status') return statusText[r.status] || r.status;
-      if (c.key === 'issues') return r.issues.join('; ');
-      const v = r[c.key];
-      return (v === null || v === undefined) ? '' : v;
-    })
-  );
-
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-
-  // Color coding via cell styles (basic)
+  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '검수결과');
+  XLSX.utils.book_append_sheet(wb, ws, '전체결과');
 
-  const now = new Date();
-  const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  // 불일치 시트
+  const badData = allRows.filter(r => r.status === 'bad').map(r => [
+    r.name, r.code, r.moveQty, r.workQty, r.diff, '❌ 불일치'
+  ]);
+  const ws2 = XLSX.utils.aoa_to_sheet([header, ...badData]);
+  XLSX.utils.book_append_sheet(wb, ws2, '❌불일치');
+
+  // 미등록 시트
+  const missData = allRows.filter(r => r.status === 'miss').map(r => [
+    r.name, r.code, '', r.workQty, '', '🔍 1차 미등록'
+  ]);
+  const ws3 = XLSX.utils.aoa_to_sheet([header, ...missData]);
+  XLSX.utils.book_append_sheet(wb, ws3, '🔍1차미등록');
+
+  const ts = new Date().toISOString().slice(0,16).replace(/[-T:]/g, '').replace('T','_');
   XLSX.writeFile(wb, `창고이동검수_${ts}.xlsx`);
-}
-
-function pad(n) { return String(n).padStart(2,'0'); }
-
-// ============================================================
-// Progress
-// ============================================================
-function setProgress(show, label, pct) {
-  const wrap = document.getElementById('progressWrap');
-  wrap.classList.toggle('visible', show);
-  if (show) {
-    document.getElementById('progressFill').style.width = (pct||0) + '%';
-    document.getElementById('progressLabel').textContent = label || '';
-  }
 }
 </script>
 </body>
