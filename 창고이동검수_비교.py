@@ -17,30 +17,33 @@ from openpyxl.utils import get_column_letter
 from collections import defaultdict
 
 # ── 입고창고 ↔ 스케줄명 매핑 ─────────────────────────────────────────────────
-# XLS 입고창고명(key) → XLSX 스케줄명 패턴 목록
+# XLS 입고창고명(key) → {"sched": [스케줄명 패턴], "erp": "ERP명 포함 문자열(선택)"}
+# erp 지정 시: 해당 스케줄 중 ERP명(U열)이 일치하는 행만 필터
 WAREHOUSE_SCHEDULE_MAP = {
-    "에스피씨지에프에스": ["SPC_"],
-    "동원홈푸드":         ["동원_"],
-    "현대그린푸드":       ["현대_"],
-    "딜리버리랩":         ["딜리버리랩"],
-    "신세계푸드":         ["신세계"],
-    "씨제이프레시웨이":   ["CJ_"],
-    "아워홈 동서울영업소":["아워홈1_수도권"],
-    "아워홈 용인2영업소": ["아워홈1_수도권"],
-    "아워홈 안산영업소":  ["아워홈1_수도권"],
-    "삼성웰스토리 평택":  ["웰스토리1_평택"],
-    "삼성웰스토리 용인":  ["웰스토리1_용인"],
-    "삼성웰스토리 오산":  ["웰스토리1_오산"],
-    "삼성웰스토리 왜관":  ["웰스토리1_왜관"],
-    "삼성웰스토리 광주":  ["웰스토리1_광주"],
-    "삼성웰스토리 김해":  ["웰스토리1_김해"],
-    "푸드머스":           ["푸드머스1"],
-    "푸디스트":           ["한화_푸디스트_"],
-    "비젼유통":           ["비전유통"],
-    "스마트푸드 오산센터":["웰스토리1_오산"],  # 가장 유사한 매핑 (확인 필요)
-    "스마트푸드 영남센터":["웰스토리1_왜관", "웰스토리1_김해"],
-    "스마트푸드 호남센터":["웰스토리1_광주"],
-    "캘리스코":           [],  # XLSX에 없음
+    "에스피씨지에프에스":    {"sched": ["SPC_"]},
+    "동원홈푸드":            {"sched": ["동원_"]},
+    "현대그린푸드":          {"sched": ["현대_"]},
+    "딜리버리랩":            {"sched": ["딜리버리랩"]},
+    "신세계푸드":            {"sched": ["신세계"]},
+    "씨제이프레시웨이":      {"sched": ["CJ_"]},
+    # 아워홈: 스케줄명은 같지만 ERP명(영업소)으로 각각 분리
+    "아워홈 동서울영업소":   {"sched": ["아워홈1_"], "erp": "동서울영업소"},
+    "아워홈 안산영업소":     {"sched": ["아워홈1_"], "erp": "안산영업소"},
+    "아워홈 용인2영업소":    {"sched": ["아워홈1_"], "erp": "용인2영업소"},
+    "삼성웰스토리 평택":     {"sched": ["웰스토리1_평택"]},
+    "삼성웰스토리 용인":     {"sched": ["웰스토리1_용인"]},
+    "삼성웰스토리 오산":     {"sched": ["웰스토리1_오산"]},
+    "삼성웰스토리 왜관":     {"sched": ["웰스토리1_왜관"]},
+    "삼성웰스토리 광주":     {"sched": ["웰스토리1_광주"]},
+    "삼성웰스토리 김해":     {"sched": ["웰스토리1_김해"]},
+    "푸드머스":              {"sched": ["푸드머스1"]},
+    "푸디스트":              {"sched": ["한화_푸디스트_"]},
+    "비젼유통":              {"sched": ["비전유통"]},
+    # 스마트푸드 3센터 → 아모제
+    "스마트푸드 오산센터":   {"sched": ["아모제"]},
+    "스마트푸드 영남센터":   {"sched": ["아모제"]},
+    "스마트푸드 호남센터":   {"sched": ["아모제"]},
+    "캘리스코":              {"sched": []},  # XLSX에 없음
 }
 
 # ── 스타일 ────────────────────────────────────────────────────────────────────
@@ -107,40 +110,45 @@ def load_xls(path: str) -> dict:
     return dict(data)
 
 
-def load_xlsx(path: str) -> dict:
+def load_xlsx(path: str) -> list:
     """
-    XLSX → {스케줄명: {제품명: float}}
-    K열(수량) 수집
+    XLSX → 행 리스트: [{"sched", "erp", "name", "qty"}]
+    K열(수량), F열(스케줄명), U열(ERP명) 수집
     """
     wb = openpyxl.load_workbook(path)
     ws = wb.active
-    data: dict[str, dict] = defaultdict(lambda: defaultdict(float))
-    count = 0
+    rows = []
     for row in ws.iter_rows(min_row=4, values_only=True):
-        sched = str(row[5]).strip() if row[5] else ""
-        name  = str(row[7]).strip() if row[7] else ""
+        sched = str(row[5]).strip()  if row[5]  else ""
+        name  = str(row[7]).strip()  if row[7]  else ""
+        erp   = str(row[20]).strip() if row[20] else ""
         qty   = float(row[10] or 0)
         if sched and name:
-            data[sched][name] += qty
-            count += 1
-    print(f"  XLSX: {count}행, 스케줄 {len(data)}개")
-    return dict(data)
+            rows.append({"sched": sched, "erp": erp, "name": name, "qty": qty})
+    print(f"  XLSX: {len(rows)}행 로드")
+    return rows
 
 
-def build_xlsx_by_warehouse(xlsx_data: dict) -> dict:
-    """XLSX 스케줄별 데이터를 XLS 입고창고 기준으로 재집계"""
+def build_xlsx_by_warehouse(xlsx_rows: list) -> dict:
+    """XLSX 행 목록을 XLS 입고창고 기준으로 집계
+    erp 필터가 있으면 ERP명 포함 여부로 추가 필터링"""
     result: dict[str, dict] = {}
-    for wh, patterns in WAREHOUSE_SCHEDULE_MAP.items():
+    for wh, cfg in WAREHOUSE_SCHEDULE_MAP.items():
+        patterns   = cfg["sched"]
+        erp_filter = cfg.get("erp", "")
         merged: dict[str, float] = defaultdict(float)
-        matched_scheds = []
-        for sched, items in xlsx_data.items():
-            if any(sched.startswith(p) or p in sched for p in patterns):
-                matched_scheds.append(sched)
-                for name, qty in items.items():
-                    merged[name] += qty
+        matched_scheds = set()
+        for r in xlsx_rows:
+            sched_match = any(r["sched"].startswith(p) or p in r["sched"] for p in patterns) if patterns else False
+            if not sched_match:
+                continue
+            if erp_filter and erp_filter not in r["erp"]:
+                continue
+            merged[r["name"]] += r["qty"]
+            matched_scheds.add(r["sched"] + (f"[{erp_filter}]" if erp_filter else ""))
         result[wh] = {
-            "items":   dict(merged),
-            "scheds":  matched_scheds,
+            "items":  dict(merged),
+            "scheds": sorted(matched_scheds),
         }
     return result
 
