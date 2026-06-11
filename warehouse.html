@@ -21,7 +21,6 @@
     }
     body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-    /* ── 헤더 ── */
     header {
       background: var(--primary);
       color: #fff;
@@ -32,11 +31,28 @@
     header h1 { font-size: 18px; font-weight: 700; }
     header p  { font-size: 12px; opacity: .8; margin-top: 2px; }
 
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
 
-    /* ── 업로드 카드 ── */
-    .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    @media(max-width:640px){ .upload-row { grid-template-columns: 1fr; } }
+    /* 모드 탭 */
+    .mode-tabs {
+      display: flex; gap: 0; border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-bottom: 24px;
+      background: #fff;
+    }
+    .mode-tab {
+      flex: 1; padding: 12px 8px; border: none; background: #fff;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      border-right: 1px solid var(--border); transition: all .15s;
+      color: var(--muted);
+    }
+    .mode-tab:last-child { border-right: none; }
+    .mode-tab.active { background: var(--primary); color: #fff; }
+
+    /* 업로드 카드 */
+    .upload-row { display: grid; gap: 16px; margin-bottom: 20px; }
+    .upload-row.cols2 { grid-template-columns: 1fr 1fr; }
+    .upload-row.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media(max-width:700px){ .upload-row.cols2, .upload-row.cols3 { grid-template-columns: 1fr; } }
 
     .card {
       background: var(--card);
@@ -60,7 +76,7 @@
     .drop-zone {
       border: 2px dashed var(--border);
       border-radius: 10px;
-      padding: 28px 16px;
+      padding: 24px 16px;
       text-align: center;
       cursor: pointer;
       background: #f8fafc;
@@ -69,19 +85,18 @@
     }
     .drop-zone:hover, .drop-zone.over { border-color: var(--primary); background: #eff6ff; }
     .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .drop-icon { font-size: 32px; }
-    .drop-hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .drop-icon { font-size: 28px; }
+    .drop-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
     .drop-hint strong { color: var(--primary); }
 
     .file-tag {
       display: none; margin-top: 10px;
       background: #eff6ff; border-radius: 8px;
-      padding: 7px 12px; font-size: 13px; color: var(--primary);
+      padding: 7px 12px; font-size: 12px; color: var(--primary);
       align-items: center; gap: 6px;
     }
     .file-tag.on { display: flex; }
 
-    /* ── 실행 버튼 ── */
     #runBtn {
       width: 100%; padding: 15px;
       background: var(--primary); color: #fff;
@@ -93,24 +108,25 @@
     #runBtn:hover:not(:disabled) { background: #1d4ed8; }
     #runBtn:disabled { background: #94a3b8; cursor: not-allowed; }
 
-    /* ── 결과 섹션 ── */
     #result { display: none; margin-top: 28px; }
     #result.on { display: block; }
 
-    /* 통계 카드 */
-    .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
-    @media(max-width:500px){ .stat-row { grid-template-columns: 1fr 1fr; } }
+    .stat-row { display: grid; gap: 14px; margin-bottom: 24px; }
+    .stat-row.cols4 { grid-template-columns: repeat(4,1fr); }
+    .stat-row.cols3 { grid-template-columns: repeat(3,1fr); }
+    @media(max-width:600px){ .stat-row.cols4 { grid-template-columns: repeat(2,1fr); } }
+
     .stat {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 18px 16px; text-align: center;
+      border-radius: var(--radius); padding: 16px; text-align: center;
     }
-    .stat .num { font-size: 32px; font-weight: 800; line-height: 1; }
-    .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .stat .num { font-size: 28px; font-weight: 800; line-height: 1; }
+    .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 6px; }
     .stat.total .num { color: var(--primary); }
     .stat.ok    .num { color: var(--success); }
     .stat.bad   .num { color: var(--danger); }
+    .stat.sum   .num { color: #7c3aed; font-size: 20px; }
 
-    /* 탭 */
     .tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
     .tab {
       flex: 1; padding: 10px 6px; border: none; background: #fff;
@@ -123,7 +139,6 @@
     .tab.ok.active  { background: var(--success); }
     .tab.bad.active { background: var(--danger); }
 
-    /* 검색 */
     .search-bar {
       width: 100%; padding: 9px 14px; margin-bottom: 12px;
       border: 1px solid var(--border); border-radius: 8px;
@@ -131,7 +146,6 @@
     }
     .search-bar:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
 
-    /* 테이블 */
     .tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06); }
     table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
     thead { background: #f8fafc; }
@@ -153,15 +167,21 @@
 
     .row-count { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
-    /* 내보내기 */
     #exportBtn {
       padding: 9px 20px; background: var(--success); color: #fff;
       border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
       cursor: pointer; float: right; margin-bottom: 10px;
     }
     #exportBtn:hover { background: #15803d; }
-
     .clearfix::after { content: ''; display: table; clear: both; }
+
+    .info-box {
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+      padding: 10px 14px; font-size: 12px; color: #0369a1; margin-top: 14px; line-height: 1.7;
+    }
+
+    .section { display: none; }
+    .section.on { display: block; }
   </style>
 </head>
 <body>
@@ -170,64 +190,106 @@
   <div style="font-size:26px">🏭</div>
   <div>
     <h1>창고이동검수 자동화</h1>
-    <p>1차 파일(이동처리) × 2차 파일(작업내역) 수량 비교</p>
+    <p>이동처리 파일 기준 수량 비교 검수 시스템</p>
   </div>
 </header>
 
 <div class="wrap">
 
-  <!-- 파일 업로드 -->
-  <div class="upload-row">
-
-    <!-- 1차: 133431 이동처리 -->
-    <div class="card">
-      <div class="card-label"><span class="badge">1</span> 1차 파일 — 이동처리 (133431)</div>
-      <div class="drop-zone" id="dropA"
-           ondragover="ev(event,'A')" ondragleave="lv('A')" ondrop="dp(event,'A')">
-        <input type="file" accept=".xlsx,.xls,.csv" onchange="load('A',this.files[0])">
-        <div class="drop-icon">📋</div>
-        <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
-      </div>
-      <div class="file-tag" id="tagA">📄 <span id="nameA"></span></div>
-      <div style="margin-top:14px; font-size:12px; color:var(--muted); line-height:1.6">
-        <b>적용 기준</b><br>
-        • I열 비고 = <code>TCT 케이터링 이동처리</code> 포함 행만<br>
-        • F열 이동수량 합산
-      </div>
-    </div>
-
-    <!-- 2차: 작업내역 -->
-    <div class="card">
-      <div class="card-label"><span class="badge" style="background:#16a34a">2</span> 2차 파일 — 작업내역</div>
-      <div class="drop-zone" id="dropB"
-           ondragover="ev(event,'B')" ondragleave="lv('B')" ondrop="dp(event,'B')">
-        <input type="file" accept=".xlsx,.xls,.csv" onchange="load('B',this.files[0])">
-        <div class="drop-icon">📦</div>
-        <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
-      </div>
-      <div class="file-tag" id="tagB">📄 <span id="nameB"></span></div>
-      <div style="margin-top:14px; font-size:12px; color:var(--muted); line-height:1.6">
-        <b>적용 기준</b><br>
-        • 3행 = 헤더, H열 품목명, K열 수량<br>
-        • K열 수량 ÷ 2 합산
-      </div>
-    </div>
+  <!-- 모드 선택 -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="switchMode('work')" id="modeWork">📦 이동처리 vs 작업내역</button>
+    <button class="mode-tab"       onclick="switchMode('alps')" id="modeAlps">🏔 이동처리 vs Alps</button>
   </div>
 
-  <button id="runBtn" onclick="run()" disabled>🔍 검수 시작</button>
+  <!-- ===== 모드 1: 이동처리 vs 작업내역 ===== -->
+  <div class="section on" id="secWork">
+    <div class="upload-row cols2">
 
-  <!-- 결과 -->
+      <div class="card">
+        <div class="card-label"><span class="badge">1</span> 1차 파일 — 이동처리 (133431)</div>
+        <div class="drop-zone" id="dropA"
+             ondragover="ev(event,'A')" ondragleave="lv('A')" ondrop="dp(event,'A')">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="load('A',this.files[0])">
+          <div class="drop-icon">📋</div>
+          <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
+        </div>
+        <div class="file-tag" id="tagA">📄 <span id="nameA"></span></div>
+        <div class="info-box">
+          • I열 비고 = <b>TCT 케이터링 이동처리</b> 포함 행만<br>
+          • F열 이동수량 합산
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label"><span class="badge" style="background:#16a34a">2</span> 2차 파일 — 작업내역</div>
+        <div class="drop-zone" id="dropB"
+             ondragover="ev(event,'B')" ondragleave="lv('B')" ondrop="dp(event,'B')">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="load('B',this.files[0])">
+          <div class="drop-icon">📦</div>
+          <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
+        </div>
+        <div class="file-tag" id="tagB">📄 <span id="nameB"></span></div>
+        <div class="info-box">
+          • 3행 = 헤더, H열 품목명, K열 수량<br>
+          • K열 수량 ÷ 2 합산 (1차·2차 이동 포함)
+        </div>
+      </div>
+    </div>
+
+    <button id="runBtn" onclick="runWork()" disabled>🔍 검수 시작</button>
+  </div>
+
+  <!-- ===== 모드 2: 이동처리 vs Alps ===== -->
+  <div class="section" id="secAlps">
+    <div class="upload-row cols2">
+
+      <div class="card">
+        <div class="card-label"><span class="badge">1</span> 1차 파일 — 이동처리 (133431)</div>
+        <div class="drop-zone" id="dropA2"
+             ondragover="ev(event,'A2')" ondragleave="lv('A2')" ondrop="dp(event,'A2')">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="load('A2',this.files[0])">
+          <div class="drop-icon">📋</div>
+          <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
+        </div>
+        <div class="file-tag" id="tagA2">📄 <span id="nameA2"></span></div>
+        <div class="info-box">
+          • I열 비고 = <b>TCT 케이터링 이동처리</b> 포함 행만<br>
+          • J열 품목코드, F열 이동수량 합산
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label"><span class="badge" style="background:#7c3aed">A</span> Alps 출고 파일</div>
+        <div class="drop-zone" id="dropC"
+             ondragover="ev(event,'C')" ondragleave="lv('C')" ondrop="dp(event,'C')">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="load('C',this.files[0])">
+          <div class="drop-icon">🏔</div>
+          <div class="drop-hint"><strong>클릭</strong>하거나 파일을 끌어놓으세요<br><small>Excel / CSV</small></div>
+        </div>
+        <div class="file-tag" id="tagC">📄 <span id="nameC"></span></div>
+        <div class="info-box">
+          • M열 ERP코드 = 이동처리 품목코드 기준 매칭<br>
+          • I열 출고수량 합산 (상태 취소/변경 제외)<br>
+          • BOX/PAK/PK 단위 → EA 자동 환산 (K열 규격)
+        </div>
+      </div>
+    </div>
+
+    <button id="runBtnAlps" onclick="runAlps()" disabled>🔍 Alps 검수 시작</button>
+  </div>
+
+  <!-- ===== 결과 ===== -->
   <div id="result">
     <div style="height:24px"></div>
 
-    <!-- 통계 -->
-    <div class="stat-row">
+    <div class="stat-row" id="statRow">
       <div class="stat total"><div class="num" id="sTotal">0</div><div class="lbl">전체 품목 수</div></div>
       <div class="stat ok">  <div class="num" id="sOk">0</div>   <div class="lbl">✅ 일치</div></div>
       <div class="stat bad"> <div class="num" id="sBad">0</div>  <div class="lbl">❌ 불일치</div></div>
+      <div class="stat sum"> <div class="num" id="sSum">—</div>  <div class="lbl" id="sSumLbl">이동수량 합계</div></div>
     </div>
 
-    <!-- 탭 + 내보내기 -->
     <div class="clearfix">
       <button id="exportBtn" onclick="exportXlsx()">📥 Excel 내보내기</button>
     </div>
@@ -235,23 +297,14 @@
       <button class="tab active"    onclick="setTab('all')"  id="tabAll">전체</button>
       <button class="tab ok"        onclick="setTab('ok')"   id="tabOk" >✅ 일치</button>
       <button class="tab bad"       onclick="setTab('bad')"  id="tabBad">❌ 불일치</button>
-      <button class="tab"           onclick="setTab('miss')" id="tabMiss">🔍 1차 미등록</button>
+      <button class="tab"           onclick="setTab('miss')" id="tabMiss">🔍 미등록</button>
     </div>
 
-    <input class="search-bar" id="search" placeholder="🔍 품목명 검색..." oninput="render()">
+    <input class="search-bar" id="search" placeholder="🔍 품목명 / 품목코드 검색..." oninput="render()">
 
     <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>품목명</th>
-            <th>품목코드 (1차)</th>
-            <th>이동수량 (F열)</th>
-            <th>작업수량÷2 (K열)</th>
-            <th>차이</th>
-            <th>결과</th>
-          </tr>
-        </thead>
+      <table id="mainTable">
+        <thead id="tableHead"></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -261,23 +314,29 @@
 </div>
 
 <script>
-// ────────────────────────────────────────────
-// 상태
-// ────────────────────────────────────────────
-let rawA = [], rawB = [];
+// ── 상태
+let rawA = [], rawB = [], rawA2 = [], rawC = [];
 let allRows = [];
 let currentTab = 'all';
+let currentMode = 'work'; // 'work' | 'alps'
 
-// ────────────────────────────────────────────
-// 드래그&드롭
-// ────────────────────────────────────────────
+// ── 모드 전환
+function switchMode(m) {
+  currentMode = m;
+  document.getElementById('secWork').classList.toggle('on', m === 'work');
+  document.getElementById('secAlps').classList.toggle('on', m === 'alps');
+  document.getElementById('modeWork').classList.toggle('active', m === 'work');
+  document.getElementById('modeAlps').classList.toggle('active', m === 'alps');
+  document.getElementById('result').classList.remove('on');
+  allRows = [];
+}
+
+// ── 드래그&드롭
 function ev(e, s) { e.preventDefault(); document.getElementById('drop'+s).classList.add('over'); }
 function lv(s)    { document.getElementById('drop'+s).classList.remove('over'); }
 function dp(e, s) { e.preventDefault(); lv(s); const f = e.dataTransfer.files[0]; if(f) load(s,f); }
 
-// ────────────────────────────────────────────
-// 파일 로드
-// ────────────────────────────────────────────
+// ── 파일 로드
 function load(slot, file) {
   if (!file) return;
   const reader = new FileReader();
@@ -287,23 +346,26 @@ function load(slot, file) {
     catch(err) { alert('파일 읽기 오류: ' + err.message); return; }
     const ws  = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-    if (slot === 'A') {
-      rawA = raw;
-      document.getElementById('nameA').textContent = file.name + ' (' + (raw.length-1) + '행)';
-    } else {
-      rawB = raw;
-      document.getElementById('nameB').textContent = file.name + ' (' + (raw.length-1) + '행)';
-    }
-    document.getElementById('tag'+slot).classList.add('on');
+    const tag = document.getElementById('tag'+slot);
+    const nm  = document.getElementById('name'+slot);
+    if (slot === 'A')  { rawA  = raw; }
+    if (slot === 'B')  { rawB  = raw; }
+    if (slot === 'A2') { rawA2 = raw; }
+    if (slot === 'C')  { rawC  = raw; }
+    nm.textContent = file.name + ' (' + (raw.length-1) + '행)';
+    tag.classList.add('on');
     lv(slot);
-    document.getElementById('runBtn').disabled = !(rawA.length && rawB.length);
+    checkReady();
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ────────────────────────────────────────────
-// 열 인덱스 자동 탐색
-// ────────────────────────────────────────────
+function checkReady() {
+  document.getElementById('runBtn').disabled     = !(rawA.length && rawB.length);
+  document.getElementById('runBtnAlps').disabled = !(rawA2.length && rawC.length);
+}
+
+// ── 헤더 유틸
 function findCol(headers, keywords) {
   const lh = headers.map(h => String(h).toLowerCase());
   for (const kw of keywords) {
@@ -312,9 +374,7 @@ function findCol(headers, keywords) {
   }
   return -1;
 }
-
 function findHeaderRow(raw, keywords) {
-  // keywords 중 하나라도 포함된 행을 헤더로 인식
   for (let i = 0; i < Math.min(10, raw.length); i++) {
     const row = raw[i].map(c => String(c).toLowerCase());
     if (keywords.some(kw => row.some(c => c.includes(kw)))) return i;
@@ -322,11 +382,28 @@ function findHeaderRow(raw, keywords) {
   return 0;
 }
 
+// ── 환산배수 파싱 (K열 규격: "10EA*20EA" -> 200, "1*20" -> 20)
+function parseConv(spec) {
+  const s = String(spec || '');
+  // "*N ea" 패턴
+  const m1 = s.match(/\*\s*(\d+)\s*ea/i);
+  if (m1) return parseInt(m1[1]);
+  // "Nea * Mea" 패턴
+  const m2 = s.match(/(\d+)\s*ea\s*\*\s*(\d+)\s*ea/i);
+  if (m2) return parseInt(m2[1]) * parseInt(m2[2]);
+  // 마지막 *N
+  const parts = s.split('*');
+  if (parts.length >= 2) {
+    const last = parts[parts.length-1].trim().match(/^(\d+)/);
+    if (last) return parseInt(last[1]);
+  }
+  return 1;
+}
+
 // ────────────────────────────────────────────
-// 검수 실행
+// 모드 1: 이동처리 vs 작업내역
 // ────────────────────────────────────────────
-function run() {
-  // ── 1차: 헤더 자동 탐색 후 비고/이동수량/품목명/품목코드 열 찾기
+function runWork() {
   const hRowA = findHeaderRow(rawA, ['비고','이동수량','품목명','품목코드']);
   const hdA   = rawA[hRowA].map(c => String(c));
   const iNote = findCol(hdA, ['비고']);
@@ -339,8 +416,7 @@ function run() {
     return;
   }
 
-  const moveMap = {};
-  const codeMap = {};
+  const moveMap = {}, codeMap = {};
   for (let i = hRowA + 1; i < rawA.length; i++) {
     const row  = rawA[i];
     const note = String(row[iNote] || '');
@@ -353,7 +429,6 @@ function run() {
     codeMap[name] = code;
   }
 
-  // ── 2차: 헤더 자동 탐색 (제품명/품목명, 수량 열 찾기)
   const hRowB = findHeaderRow(rawB, ['제품명','품목명','수량','배송일']);
   const hdB   = rawB[hRowB].map(c => String(c));
   const iNameB = findCol(hdB, ['제품명','품목명']);
@@ -373,7 +448,6 @@ function run() {
     workMap[name] = (workMap[name] || 0) + qty / 2;
   }
 
-  // ── 비교 (작업내역 기준)
   const rows = [];
   for (const [name, workQty] of Object.entries(workMap)) {
     const moveQty = moveMap[name];
@@ -385,41 +459,177 @@ function run() {
       diff = Math.round((moveQty - workQty) * 1000) / 1000;
       status = Math.abs(diff) < 0.001 ? 'ok' : 'bad';
     }
-    rows.push({ name, code,
-      moveQty: moveQty !== undefined ? moveQty : null,
-      workQty: Math.round(workQty * 1000) / 1000,
-      diff, status });
+    rows.push({ name, code, moveQty: moveQty ?? null, secondQty: Math.round(workQty*1000)/1000, diff, status, unit: '', conv: 1 });
   }
 
-  allRows = rows;
+  const totalMove = Object.values(moveMap).reduce((a,b)=>a+b, 0);
+  showResult(rows, 'work', totalMove);
+}
 
-  // 통계
+// ────────────────────────────────────────────
+// 모드 2: 이동처리 vs Alps
+// ────────────────────────────────────────────
+function runAlps() {
+  // 1차: 이동처리
+  const hRowA = findHeaderRow(rawA2, ['비고','이동수량','품목명','품목코드']);
+  const hdA   = rawA2[hRowA].map(c => String(c));
+  const iNote = findCol(hdA, ['비고']);
+  const iQtyA = findCol(hdA, ['이동수량']);
+  const iName = findCol(hdA, ['품목명']);
+  const iCode = findCol(hdA, ['품목코드']);
+
+  if (iNote < 0 || iQtyA < 0 || iCode < 0) {
+    alert('1차 파일에서 필요한 열(비고, 이동수량, 품목코드)을 찾지 못했습니다.\n실제 헤더: ' + hdA.slice(0,15).join(', '));
+    return;
+  }
+
+  // 품목코드 → {이동수량, 품목명}
+  const moveMap = {}, nameMap = {};
+  let totalMove = 0;
+  for (let i = hRowA + 1; i < rawA2.length; i++) {
+    const row  = rawA2[i];
+    const note = String(row[iNote] || '');
+    if (!note.includes('TCT 케이터링 이동처리')) continue;
+    const code = String(row[iCode] || '').trim();
+    const qty  = parseFloat(row[iQtyA]) || 0;
+    const name = iName >= 0 ? String(row[iName] || '').trim() : code;
+    if (!code) continue;
+    moveMap[code] = (moveMap[code] || 0) + qty;
+    nameMap[code] = name;
+    totalMove += qty;
+  }
+
+  // Alps 파일
+  const hRowC = findHeaderRow(rawC, ['erp','품목코드','출고수량','상태','단위','규격']);
+  const hdC   = rawC[hRowC].map(c => String(c));
+  const iErp  = findCol(hdC, ['erp코드','erp']);
+  const iOut  = findCol(hdC, ['출고수량']);
+  const iUnit = findCol(hdC, ['단위']);
+  const iSpec = findCol(hdC, ['규격']);
+  const iStat = findCol(hdC, ['상태']);
+
+  if (iErp < 0 || iOut < 0) {
+    alert('Alps 파일에서 필요한 열(ERP코드, 출고수량)을 찾지 못했습니다.\n실제 헤더: ' + hdC.slice(0,20).join(', '));
+    return;
+  }
+
+  // ERP코드 → {alps출고합, 단위, 규격}
+  const alpsMap = {}, alpsUnit = {}, alpsSpec = {};
+  for (let i = hRowC + 1; i < rawC.length; i++) {
+    const row  = rawC[i];
+    const stat = iStat >= 0 ? String(row[iStat] || '').trim() : '';
+    if (stat === '취소' || stat === '변경') continue;
+    const code = String(row[iErp] || '').trim();
+    const qty  = parseFloat(row[iOut]) || 0;
+    const unit = iUnit >= 0 ? String(row[iUnit] || '').trim().toUpperCase() : '';
+    const spec = iSpec >= 0 ? String(row[iSpec] || '').trim() : '';
+    if (!code) continue;
+    alpsMap[code]  = (alpsMap[code]  || 0) + qty;
+    alpsUnit[code] = unit;
+    alpsSpec[code] = spec;
+  }
+
+  // BOX/PAK 단위 환산
+  const BOX_UNITS = ['BOX','PAK','PAC','PK','박스','팩'];
+  function needConv(u) { return BOX_UNITS.some(b => u.includes(b)); }
+
+  const rows = [];
+  for (const [code, moveQty] of Object.entries(moveMap)) {
+    const name = nameMap[code];
+    const alpsRaw = alpsMap[code];
+
+    if (alpsRaw === undefined) {
+      rows.push({ name, code, moveQty, secondQty: null, diff: null, status: 'miss', unit: '', conv: 1 });
+      continue;
+    }
+
+    const unit = alpsUnit[code] || '';
+    const spec = alpsSpec[code] || '';
+    let conv = 1;
+    let alpsQty = alpsRaw;
+
+    if (needConv(unit)) {
+      conv = parseConv(spec);
+      if (conv > 1) alpsQty = alpsRaw * conv;
+    }
+
+    const diff = Math.round((moveQty - alpsQty) * 1000) / 1000;
+    const status = Math.abs(diff) < 0.001 ? 'ok' : 'bad';
+    rows.push({ name, code, moveQty, secondQty: Math.round(alpsQty*1000)/1000, diff, status,
+                unit, conv, alpsOrig: alpsRaw, spec });
+  }
+
+  // Alps에만 있는 항목 (이동처리에 없는)
+  for (const [code, alpsRaw] of Object.entries(alpsMap)) {
+    if (moveMap[code] !== undefined) continue;
+    const unit = alpsUnit[code] || '';
+    const spec = alpsSpec[code] || '';
+    let conv = 1, alpsQty = alpsRaw;
+    if (needConv(unit)) { conv = parseConv(spec); if(conv>1) alpsQty = alpsRaw * conv; }
+    rows.push({ name: '(Alps에만 존재)', code, moveQty: null, secondQty: Math.round(alpsQty*1000)/1000,
+                diff: null, status: 'miss2', unit, conv, alpsOrig: alpsRaw, spec });
+  }
+
+  showResult(rows, 'alps', totalMove);
+}
+
+// ────────────────────────────────────────────
+// 결과 표시
+// ────────────────────────────────────────────
+function showResult(rows, mode, totalMove) {
+  allRows = rows;
+  currentMode = mode;
+
   const ok   = rows.filter(r => r.status === 'ok').length;
   const bad  = rows.filter(r => r.status === 'bad').length;
-  const miss = rows.filter(r => r.status === 'miss').length;
+  const miss = rows.filter(r => r.status === 'miss' || r.status === 'miss2').length;
+
   document.getElementById('sTotal').textContent = rows.length;
   document.getElementById('sOk').textContent    = ok;
   document.getElementById('sBad').textContent   = bad + miss;
+  document.getElementById('sSum').textContent   = totalMove.toLocaleString();
+  document.getElementById('sSumLbl').textContent = '이동수량 합계 (F열)';
 
-  // 탭 카운트 업데이트
+  // 통계 카드 레이아웃
+  document.getElementById('statRow').className = 'stat-row cols4';
+
+  const tabMissLabel = mode === 'alps' ? '🔍 이동처리만/Alps만' : '🔍 1차 미등록';
   document.getElementById('tabAll').textContent  = `전체 (${rows.length})`;
   document.getElementById('tabOk').textContent   = `✅ 일치 (${ok})`;
   document.getElementById('tabBad').textContent  = `❌ 불일치 (${bad})`;
-  document.getElementById('tabMiss').textContent = `🔍 1차 미등록 (${miss})`;
+  document.getElementById('tabMiss').textContent = `${tabMissLabel} (${miss})`;
+
+  // 테이블 헤더
+  const thead = document.getElementById('tableHead');
+  if (mode === 'alps') {
+    thead.innerHTML = `<tr>
+      <th>품목명</th><th>품목코드</th>
+      <th>이동수량(F열)</th><th>Alps출고(원본)</th>
+      <th>Alps단위</th><th>환산배수</th><th>Alps환산EA</th>
+      <th>차이</th><th>결과</th>
+    </tr>`;
+  } else {
+    thead.innerHTML = `<tr>
+      <th>품목명</th><th>품목코드(1차)</th>
+      <th>이동수량(F열)</th><th>작업수량÷2(K열)</th>
+      <th>차이</th><th>결과</th>
+    </tr>`;
+  }
 
   currentTab = 'all';
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tabAll').classList.add('active');
   document.getElementById('search').value = '';
+  document.getElementById('search').placeholder = mode === 'alps'
+    ? '🔍 품목명 / 품목코드 검색...'
+    : '🔍 품목명 검색...';
 
   document.getElementById('result').classList.add('on');
   document.getElementById('result').scrollIntoView({behavior:'smooth'});
   render();
 }
 
-// ────────────────────────────────────────────
-// 탭 전환
-// ────────────────────────────────────────────
+// ── 탭
 function setTab(t) {
   currentTab = t;
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -428,91 +638,115 @@ function setTab(t) {
   render();
 }
 
-// ────────────────────────────────────────────
-// 렌더링
-// ────────────────────────────────────────────
+// ── 렌더
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
   const filtered = allRows.filter(r => {
-    if (currentTab === 'ok'   && r.status !== 'ok')   return false;
-    if (currentTab === 'bad'  && r.status !== 'bad')  return false;
-    if (currentTab === 'miss' && r.status !== 'miss') return false;
-    if (q && !r.name.toLowerCase().includes(q)) return false;
+    const isMiss = r.status === 'miss' || r.status === 'miss2';
+    if (currentTab === 'ok'   && r.status !== 'ok')  return false;
+    if (currentTab === 'bad'  && r.status !== 'bad') return false;
+    if (currentTab === 'miss' && !isMiss)             return false;
+    if (q && !r.name.toLowerCase().includes(q) && !r.code.toLowerCase().includes(q)) return false;
     return true;
   });
 
   const tbody = document.getElementById('tbody');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">해당 항목이 없습니다</td></tr>';
+    const colspan = currentMode === 'alps' ? 9 : 6;
+    tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;padding:32px;color:var(--muted)">해당 항목이 없습니다</td></tr>`;
     document.getElementById('rowCount').textContent = '';
     return;
   }
 
-  tbody.innerHTML = filtered.sort((a,b) => {
-    // 불일치 먼저, 미등록, 일치 순
-    const order = {bad:0, miss:1, ok:2};
-    return order[a.status] - order[b.status] || a.name.localeCompare(b.name, 'ko');
-  }).map(r => {
+  const order = {bad:0, miss:1, miss2:1, ok:2};
+  const sorted = filtered.sort((a,b) => (order[a.status]||0) - (order[b.status]||0) || a.name.localeCompare(b.name,'ko'));
+
+  tbody.innerHTML = sorted.map(r => {
+    const isMiss = r.status === 'miss' || r.status === 'miss2';
     const chipHtml = r.status === 'ok'
       ? '<span class="chip chip-ok">✅ 일치</span>'
-      : r.status === 'miss'
-      ? '<span class="chip" style="background:#f1f5f9;color:#64748b">🔍 1차 미등록</span>'
+      : isMiss
+      ? '<span class="chip" style="background:#f1f5f9;color:#64748b">🔍 미등록</span>'
       : '<span class="chip chip-bad">❌ 불일치</span>';
 
-    const moveCell = r.moveQty !== null ? r.moveQty : '<span style="color:var(--muted)">—</span>';
+    const moveCell = r.moveQty !== null ? r.moveQty.toLocaleString() : '<span style="color:var(--muted)">—</span>';
+    const secoCell = r.secondQty !== null ? r.secondQty.toLocaleString() : '<span style="color:var(--muted)">—</span>';
     let diffCell = '—';
     if (r.diff !== null) {
       if (Math.abs(r.diff) < 0.001) diffCell = '<span class="diff-zero">0</span>';
-      else if (r.diff > 0) diffCell = `<span class="diff-plus">+${r.diff}</span>`;
-      else                 diffCell = `<span class="diff-minus">${r.diff}</span>`;
+      else if (r.diff > 0) diffCell = `<span class="diff-plus">+${r.diff.toLocaleString()}</span>`;
+      else diffCell = `<span class="diff-minus">${r.diff.toLocaleString()}</span>`;
     }
-    return `<tr>
-      <td>${r.name}</td>
-      <td style="color:var(--muted)">${r.code}</td>
-      <td>${moveCell}</td>
-      <td>${r.workQty}</td>
-      <td>${diffCell}</td>
-      <td>${chipHtml}</td>
-    </tr>`;
+
+    if (currentMode === 'alps') {
+      const origCell = r.alpsOrig !== undefined ? r.alpsOrig.toLocaleString() : '—';
+      const convCell = r.conv > 1 ? `<b style="color:#7c3aed">×${r.conv}</b>` : '1(EA)';
+      return `<tr>
+        <td>${r.name}</td>
+        <td style="color:var(--muted);font-family:monospace">${r.code}</td>
+        <td>${moveCell}</td>
+        <td>${origCell}</td>
+        <td>${r.unit || '—'}</td>
+        <td>${convCell}</td>
+        <td>${secoCell}</td>
+        <td>${diffCell}</td>
+        <td>${chipHtml}</td>
+      </tr>`;
+    } else {
+      return `<tr>
+        <td>${r.name}</td>
+        <td style="color:var(--muted)">${r.code}</td>
+        <td>${moveCell}</td>
+        <td>${secoCell}</td>
+        <td>${diffCell}</td>
+        <td>${chipHtml}</td>
+      </tr>`;
+    }
   }).join('');
 
   document.getElementById('rowCount').textContent = `${filtered.length}건 표시 중 / 전체 ${allRows.length}건`;
 }
 
-// ────────────────────────────────────────────
-// Excel 내보내기
-// ────────────────────────────────────────────
+// ── Excel 내보내기
 function exportXlsx() {
-  const statusLabel = {ok:'✅ 일치', bad:'❌ 불일치', miss:'🔍 1차 미등록'};
-  const header = ['품목명','품목코드(1차)','이동수량(F열)','작업수량÷2(K열)','차이(이동-작업/2)','결과'];
-  const data = allRows.map(r => [
-    r.name, r.code,
-    r.moveQty !== null ? r.moveQty : '',
-    r.workQty,
-    r.diff !== null ? r.diff : '',
-    statusLabel[r.status]
-  ]);
+  const statusLabel = {ok:'✅ 일치', bad:'❌ 불일치', miss:'🔍 미등록', miss2:'🔍 미등록(Alps)'};
+  let header, data;
+
+  if (currentMode === 'alps') {
+    header = ['품목명','품목코드','이동수량(F열)','Alps출고(원본)','Alps단위','환산배수','Alps환산EA','차이','결과'];
+    data = allRows.map(r => [
+      r.name, r.code, r.moveQty ?? '', r.alpsOrig ?? '', r.unit, r.conv,
+      r.secondQty ?? '', r.diff ?? '', statusLabel[r.status]
+    ]);
+  } else {
+    header = ['품목명','품목코드(1차)','이동수량(F열)','작업수량÷2(K열)','차이(이동-작업/2)','결과'];
+    data = allRows.map(r => [
+      r.name, r.code, r.moveQty ?? '', r.secondQty, r.diff ?? '', statusLabel[r.status]
+    ]);
+  }
+
+  const wb = XLSX.utils.book_new();
 
   const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
-  const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '전체결과');
 
-  // 불일치 시트
-  const badData = allRows.filter(r => r.status === 'bad').map(r => [
-    r.name, r.code, r.moveQty, r.workQty, r.diff, '❌ 불일치'
-  ]);
-  const ws2 = XLSX.utils.aoa_to_sheet([header, ...badData]);
-  XLSX.utils.book_append_sheet(wb, ws2, '❌불일치');
+  const badData = allRows.filter(r => r.status === 'bad').map(r =>
+    currentMode === 'alps'
+      ? [r.name, r.code, r.moveQty, r.alpsOrig, r.unit, r.conv, r.secondQty, r.diff, '❌ 불일치']
+      : [r.name, r.code, r.moveQty, r.secondQty, r.diff, '❌ 불일치']
+  );
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...badData]), '❌불일치');
 
-  // 미등록 시트
-  const missData = allRows.filter(r => r.status === 'miss').map(r => [
-    r.name, r.code, '', r.workQty, '', '🔍 1차 미등록'
-  ]);
-  const ws3 = XLSX.utils.aoa_to_sheet([header, ...missData]);
-  XLSX.utils.book_append_sheet(wb, ws3, '🔍1차미등록');
+  const missData = allRows.filter(r => r.status === 'miss' || r.status === 'miss2').map(r =>
+    currentMode === 'alps'
+      ? [r.name, r.code, r.moveQty ?? '', r.alpsOrig ?? '', r.unit, r.conv, r.secondQty ?? '', '', statusLabel[r.status]]
+      : [r.name, r.code, '', r.secondQty, '', '🔍 1차 미등록']
+  );
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...missData]), '🔍미등록');
 
-  const ts = new Date().toISOString().slice(0,16).replace(/[-T:]/g, '').replace('T','_');
-  XLSX.writeFile(wb, `창고이동검수_${ts}.xlsx`);
+  const ts = new Date().toISOString().slice(0,16).replace(/[-T:]/g,'');
+  const suffix = currentMode === 'alps' ? 'Alps비교' : '작업내역비교';
+  XLSX.writeFile(wb, `창고이동검수_${suffix}_${ts}.xlsx`);
 }
 </script>
 </body>
