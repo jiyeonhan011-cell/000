@@ -3,16 +3,13 @@
 창고이동 3단계 검수 자동화
 ────────────────────────────────────────────────────────────────
 Step 1. 이동처리 파일(F열) vs 라벨발행 파일(I열) 출고수량 비교
-         매칭 키: ERP코드 + 날짜(이동처리 비고날짜 = 라벨발행 배송일)
-         * 취소/변경 행은 라벨발행에서 자동 제외
+         · 이동처리: I열(비고)에 'TCT 케이터링 이동처리' 포함 행만 사용
+         · 라벨발행: 취소/변경 행 자동 제외
+         · 매칭 키: ERP코드만 (날짜 무관, 전체 합산 비교)
 
 Step 2. 라벨발행 파일(L열 급품목코드) vs 작업내역 파일(G열 제품코드) 수량 비교
-         매칭 키: 급품목코드 + 배송일
-         * 작업내역 파일은 창고이동 2회이므로 K열 수량 ÷ 2 적용
-
-결과: 검수요약 / 1단계_수량불일치 / 1단계_창고이동만 / 1단계_라벨만
-      2단계_수량불일치 / 2단계_라벨만 / 2단계_작업내역만
-      1단계_일치 / 2단계_일치
+         · 작업내역 K열 수량 ÷ 2 (창고이동 2회)
+         · 매칭 키: 급품목코드만
 ────────────────────────────────────────────────────────────────
 """
 
@@ -53,54 +50,60 @@ def dat(cell, align=LEFT, bold=False, bg=None):
         cell.fill = PatternFill("solid", fgColor=bg)
 
 
-# ── 유틸 ─────────────────────────────────────────────────────────
-def norm(name: str) -> str:
-    """괄호 접두사·공백 정규화"""
-    name = re.sub(r'^\([^)]+\)\s*', '', str(name))
-    return re.sub(r'\s+', ' ', name).strip()
-
 def clean_code(v) -> str:
-    """코드에서 zero-width 문자 제거"""
+    """zero-width 문자 제거"""
     return re.sub(r'[​‌‍﻿]', '', str(v or '')).strip()
 
 
-# ── STEP 1: 이동처리 파일 로드 ────────────────────────────────────
+# ── 이동처리 파일 로드 ────────────────────────────────────────────
 def load_warehouse(path):
-    """TCT 케이터링 이동처리만 → (비고날짜, ERP코드) : {qty, 품목명, ...}"""
+    """
+    I열(비고)에 'TCT 케이터링 이동처리' 포함 행만 수집
+    집계 키: ERP코드(품목코드) - 날짜 무관 전체 합산
+    """
     try:
         wb = xlrd.open_workbook(path)
     except Exception as e:
         print(f"[오류] 이동처리 파일: {e}"); sys.exit(1)
-    ws = wb.sheet_by_index(0)
+    ws  = wb.sheet_by_index(0)
     TARGET = "TCT 케이터링 이동처리"
-    qty_map  = defaultdict(float)
-    info_map = {}
+
+    qty_map  = defaultdict(float)   # erp_code -> total qty
+    info_map = {}                   # erp_code -> {품목명, 규격, 단위}
+    dates_map = defaultdict(set)    # erp_code -> {날짜 set}
+
     for i in range(1, ws.nrows):
         note = str(ws.cell_value(i, 8))
         if TARGET not in note:
             continue
-        m = re.search(r'\((\d{4}-\d{2}-\d{2})\)', note)
+        m    = re.search(r'\((\d{4}-\d{2}-\d{2})\)', note)
         date = m.group(1) if m else str(ws.cell_value(i, 3)).strip()
         erp  = str(ws.cell_value(i, 9)).strip()
         name = str(ws.cell_value(i, 10)).strip()
         qty  = float(ws.cell_value(i, 5) or 0)
-        key  = (date, erp)
-        qty_map[key] += qty
-        if key not in info_map:
-            info_map[key] = {
-                "품목코드": erp,
-                "품목명":   name,
-                "규격":     str(ws.cell_value(i, 11)).strip(),
-                "단위":     str(ws.cell_value(i, 12)).strip(),
+
+        qty_map[erp] += qty
+        dates_map[erp].add(date)
+        if erp not in info_map:
+            info_map[erp] = {
+                "품목명": name,
+                "규격":   str(ws.cell_value(i, 11)).strip(),
+                "단위":   str(ws.cell_value(i, 12)).strip(),
             }
+
+    # 날짜 목록을 문자열로
+    for erp in info_map:
+        info_map[erp]["이동날짜"] = ", ".join(sorted(dates_map[erp]))
+
     return qty_map, info_map
 
 
-# ── STEP 1: 라벨발행 파일 로드 ────────────────────────────────────
+# ── 라벨발행 파일 로드 ────────────────────────────────────────────
 def load_label(path):
     """
-    취소/변경 제외 → (배송일, ERP코드) : {I출고수량, L급품목코드, ...}
-    + (배송일, 급품목코드) : {I출고수량, ...}  ← Step2용
+    취소/변경 제외 후
+    Step1 집계 키: ERP코드(M열) → I열 출고수량 합산
+    Step2 집계 키: 급품목코드(L열) → I열 출고수량 합산
     """
     try:
         wb = openpyxl.load_workbook(path)
@@ -108,10 +111,10 @@ def load_label(path):
         print(f"[오류] 라벨발행 파일: {e}"); sys.exit(1)
     ws = wb.active
 
-    step1_qty  = defaultdict(float)
-    step1_info = {}
-    step2_qty  = defaultdict(float)
-    step2_info = {}
+    s1_qty  = defaultdict(float)   # erp_code -> qty
+    s1_info = {}
+    s2_qty  = defaultdict(float)   # 급품목코드 -> qty
+    s2_info = {}
     canceled = 0
 
     for i in range(2, ws.max_row + 1):
@@ -124,34 +127,32 @@ def load_label(path):
         출고수량 = float(ws.cell(i, 9).value or 0)
         단위     = str(ws.cell(i, 10).value or '').strip()
         규격     = str(ws.cell(i, 11).value or '').strip()
-        급코드   = clean_code(ws.cell(i, 12).value)   # L열
-        erp코드  = str(ws.cell(i, 13).value  or '').strip()  # M열
+        급코드   = clean_code(ws.cell(i, 12).value)    # L열
+        erp코드  = str(ws.cell(i, 13).value or '').strip()  # M열
 
-        # Step1 키: 배송일 + ERP코드
-        k1 = (배송일, erp코드)
-        step1_qty[k1] += 출고수량
-        if k1 not in step1_info:
-            step1_info[k1] = {
+        # Step1
+        s1_qty[erp코드] += 출고수량
+        if erp코드 not in s1_info:
+            s1_info[erp코드] = {
                 "ERP코드": erp코드, "급품목코드": 급코드,
                 "제품명": 제품명, "규격": 규격, "단위": 단위,
             }
 
-        # Step2 키: 배송일 + 급품목코드
-        k2 = (배송일, 급코드)
-        step2_qty[k2] += 출고수량
-        if k2 not in step2_info:
-            step2_info[k2] = {
+        # Step2
+        s2_qty[급코드] += 출고수량
+        if 급코드 not in s2_info:
+            s2_info[급코드] = {
                 "급품목코드": 급코드, "ERP코드": erp코드,
                 "제품명": 제품명, "규격": 규격, "단위": 단위,
             }
 
     print(f"  라벨발행 취소/변경 제외: {canceled}건")
-    return step1_qty, step1_info, step2_qty, step2_info
+    return s1_qty, s1_info, s2_qty, s2_info
 
 
-# ── STEP 2: 작업내역 파일 로드 ───────────────────────────────────
+# ── 작업내역 파일 로드 ────────────────────────────────────────────
 def load_catering(path):
-    """(배송일, G열제품코드) : {K열수량÷2, 제품명, ...}"""
+    """G열 제품코드 → K열 수량 ÷ 2 합산"""
     try:
         wb = openpyxl.load_workbook(path)
     except Exception as e:
@@ -160,59 +161,48 @@ def load_catering(path):
     qty_map  = defaultdict(float)
     info_map = {}
     for i in range(4, ws.max_row + 1):
-        배송일 = str(ws.cell(i, 3).value or '').strip()
-        if not 배송일 or 배송일 == '센터명':
+        d = ws.cell(i, 3).value
+        if not d or str(d) == '센터명':
             continue
-        prod_code = clean_code(ws.cell(i, 7).value)
-        prod_name = str(ws.cell(i, 8).value or '').strip()
-        qty       = float(ws.cell(i, 11).value or 0)
-        key = (배송일, prod_code)
-        qty_map[key] += qty
-        if key not in info_map:
-            info_map[key] = {
-                "제품코드": prod_code, "제품명": prod_name,
+        code = clean_code(ws.cell(i, 7).value)
+        name = str(ws.cell(i, 8).value or '').strip()
+        qty  = float(ws.cell(i, 11).value or 0)
+        qty_map[code] += qty
+        if code not in info_map:
+            info_map[code] = {
+                "제품코드": code, "제품명": name,
                 "규격": str(ws.cell(i, 9).value or '').strip(),
                 "단위": str(ws.cell(i, 10).value or '').strip(),
             }
-    # 창고이동 2회 → ÷2
     qty_half = {k: v / 2 for k, v in qty_map.items()}
     return qty_half, info_map
 
 
-# ── 비교 함수 ────────────────────────────────────────────────────
-def compare(a_qty, a_info, b_qty, b_info, a_col, b_col):
-    """
-    두 dict를 비교하여 일치/수량불일치/a만/b만 분류.
-    반환: (matched, qty_diff, a_only, b_only)
-    """
+# ── 비교 함수 ─────────────────────────────────────────────────────
+def compare(a_qty, a_info, b_qty, b_info, col_a, col_b):
     all_keys = set(a_qty) | set(b_qty)
     matched, qty_diff, a_only, b_only = [], [], [], []
 
-    for key in sorted(all_keys):
-        date, code = key
-        aq = a_qty.get(key)
-        bq = b_qty.get(key)
-        ai = a_info.get(key, {})
-        bi = b_info.get(key, {})
+    for code in sorted(all_keys):
+        aq = a_qty.get(code)
+        bq = b_qty.get(code)
+        ai = a_info.get(code, {})
+        bi = b_info.get(code, {})
 
         name = (ai.get("품목명") or ai.get("제품명") or
-                bi.get("품목명") or bi.get("제품명") or
-                ai.get("ERP코드") or "")
+                bi.get("품목명") or bi.get("제품명") or "")
         row = {
-            "날짜":   date,
-            "코드":   code,
-            "품목명": name,
-            "규격":   ai.get("규격") or bi.get("규격", ""),
-            "단위":   ai.get("단위") or bi.get("단위", ""),
-            a_col:    aq,
-            b_col:    bq,
-            "차이":   (bq or 0) - (aq or 0),
+            "ERP코드":  code,
+            "품목명":   name,
+            "규격":     ai.get("규격") or bi.get("규격", ""),
+            "단위":     ai.get("단위") or bi.get("단위", ""),
+            "이동날짜": ai.get("이동날짜", ""),
+            col_a:      aq,
+            col_b:      bq,
+            "차이":     (bq or 0) - (aq or 0),
         }
         if aq is not None and bq is not None:
-            if abs(aq - bq) < 0.001:
-                matched.append(row)
-            else:
-                qty_diff.append(row)
+            (matched if abs(aq - bq) < 0.001 else qty_diff).append(row)
         elif aq is not None:
             a_only.append(row)
         else:
@@ -221,32 +211,28 @@ def compare(a_qty, a_info, b_qty, b_info, a_col, b_col):
     return matched, qty_diff, a_only, b_only
 
 
-# ── xlsx 저장 ────────────────────────────────────────────────────
-SHEET_DEFS = [
-    # (sheet_title, hdr_bg, row_bg, col_headers, col_keys)
-]
-
-def write_sheet(wb, title, rows, hdr_bg, row_bg,
-                col_label_a, col_label_b, col_key_a, col_key_b,
-                extra_cols=None):
-    """범용 시트 작성기"""
+# ── 시트 작성 ─────────────────────────────────────────────────────
+def write_sheet(wb, title, rows, hdr_bg, row_bg, col_a, col_b, show_date=True):
     ws = wb.create_sheet(title)
-    base_headers = ["날짜", "코드", "품목명", "규격", "단위",
-                    col_label_a, col_label_b, "차이"]
-    base_keys    = ["날짜", "코드", "품목명", "규격", "단위",
-                    col_key_a,  col_key_b,  "차이"]
-    widths       = [13, 16, 38, 18, 7, 16, 16, 10]
+    base_h = ["ERP코드", "품목명", "규격", "단위"]
+    base_k = ["ERP코드", "품목명", "규격", "단위"]
+    if show_date:
+        base_h.append("이동날짜")
+        base_k.append("이동날짜")
+    base_h += [col_a, col_b, "차이"]
+    base_k += [col_a, col_b, "차이"]
+    widths = [16, 38, 18, 7, 22, 16, 16, 10] if show_date else [16, 38, 18, 7, 16, 16, 10]
 
-    for c, h in enumerate(base_headers, 1):
-        hdr(ws.cell(row=1, column=c, value=h), hdr_bg)
+    for c, h in enumerate(base_h, 1):
+        hdr(ws.cell(1, c, h), hdr_bg)
 
     for r, item in enumerate(rows, 2):
         bg = row_bg if r % 2 == 0 else None
-        for c, key in enumerate(base_keys, 1):
+        for c, key in enumerate(base_k, 1):
             val = item.get(key)
             if val is None: val = "-"
-            cell = ws.cell(row=r, column=c, value=val)
-            align = CENTER if c in (1, 5, 6, 7, 8) else LEFT
+            cell = ws.cell(r, c, val)
+            align = CENTER if key in ("ERP코드","단위", col_a, col_b, "차이","이동날짜") else LEFT
             cell_bg = bg
             if key == "차이" and isinstance(val, (int, float)) and abs(val) > 0.001:
                 cell_bg = "FFD7D7"
@@ -255,96 +241,58 @@ def write_sheet(wb, title, rows, hdr_bg, row_bg,
     for c, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(c)].width = w
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(base_headers))}1"
-    return ws
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(base_h))}1"
 
 
-def save_all(s1_matched, s1_diff, s1_wh_only, s1_label_only,
-             s2_matched, s2_diff, s2_label_only, s2_cat_only,
+# ── xlsx 저장 ─────────────────────────────────────────────────────
+def save_all(s1_matched, s1_diff, s1_wh_only, s1_lbl_only,
+             s2_matched, s2_diff, s2_lbl_only, s2_cat_only,
              output_path):
     wb = openpyxl.Workbook()
-
-    # ── 요약 시트 ────────────────────────────────────────────────
     ws_sum = wb.active
     ws_sum.title = "검수요약"
     ws_sum.column_dimensions["A"].width = 42
     ws_sum.column_dimensions["B"].width = 16
 
     ws_sum.merge_cells("A1:B1")
-    c = ws_sum.cell(1, 1, "창고이동 3단계 검수 결과")
-    hdr(c, "1F4E79")
+    hdr(ws_sum.cell(1, 1, "창고이동 3단계 검수 결과"), "1F4E79")
 
-    s1_common = len(s1_matched) + len(s1_diff)
-    s2_common = len(s2_matched) + len(s2_diff)
-
-    rows = [
-        ("── STEP 1: 이동처리 vs 라벨발행(출고수량) ──", ""),
-        ("  전체 비교 항목 (날짜+ERP코드)",             len(s1_matched)+len(s1_diff)+len(s1_wh_only)+len(s1_label_only)),
-        ("  ✅ 일치",                                   len(s1_matched)),
-        ("  ❌ 수량 불일치 (양쪽 존재)",                 len(s1_diff)),
-        ("  ⚠️  이동처리에만 있는 항목",                 len(s1_wh_only)),
-        ("  ⚠️  라벨발행에만 있는 항목",                 len(s1_label_only)),
-        ("  일치율 (공통항목 기준)",
-         f"{len(s1_matched)/s1_common*100:.1f}%" if s1_common else "-"),
+    s1c = len(s1_matched) + len(s1_diff)
+    s2c = len(s2_matched) + len(s2_diff)
+    rows_data = [
+        ("── STEP 1: 이동처리(F열) vs 라벨발행(I열) ──", ""),
+        ("  전체 비교 항목 (ERP코드 기준)", len(s1_matched)+len(s1_diff)+len(s1_wh_only)+len(s1_lbl_only)),
+        ("  ✅ 일치",                       len(s1_matched)),
+        ("  ❌ 수량 불일치 (양쪽 존재)",     len(s1_diff)),
+        ("  ⚠️  이동처리에만 있는 항목",     len(s1_wh_only)),
+        ("  ⚠️  라벨발행에만 있는 항목",     len(s1_lbl_only)),
+        ("  일치율 (공통항목 기준)",          f"{len(s1_matched)/s1c*100:.1f}%" if s1c else "-"),
         ("", ""),
         ("── STEP 2: 라벨발행(L열) vs 작업내역(G열) ──", ""),
-        ("  전체 비교 항목 (날짜+급품목코드)",             len(s2_matched)+len(s2_diff)+len(s2_label_only)+len(s2_cat_only)),
-        ("  ✅ 일치",                                   len(s2_matched)),
-        ("  ❌ 수량 불일치 (양쪽 존재)",                 len(s2_diff)),
-        ("  ⚠️  라벨발행에만 있는 항목",                 len(s2_label_only)),
-        ("  ⚠️  작업내역에만 있는 항목",                 len(s2_cat_only)),
-        ("  일치율 (공통항목 기준)",
-         f"{len(s2_matched)/s2_common*100:.1f}%" if s2_common else "-"),
+        ("  전체 비교 항목 (급품목코드 기준)", len(s2_matched)+len(s2_diff)+len(s2_lbl_only)+len(s2_cat_only)),
+        ("  ✅ 일치",                        len(s2_matched)),
+        ("  ❌ 수량 불일치 (양쪽 존재)",      len(s2_diff)),
+        ("  ⚠️  라벨발행에만 있는 항목",      len(s2_lbl_only)),
+        ("  ⚠️  작업내역에만 있는 항목",      len(s2_cat_only)),
+        ("  일치율 (공통항목 기준)",           f"{len(s2_matched)/s2c*100:.1f}%" if s2c else "-"),
     ]
-    for r, (label, val) in enumerate(rows, 2):
-        c1 = ws_sum.cell(r, 1, label)
-        c2 = ws_sum.cell(r, 2, val if val != "" else None)
+    for r, (label, val) in enumerate(rows_data, 2):
         bold = label.startswith("──")
-        bg = "D9E1F2" if bold else None
-        dat(c1, LEFT,   bold=bold, bg=bg)
-        dat(c2, CENTER, bold=bold, bg=bg)
+        bg   = "D9E1F2" if bold else None
+        dat(ws_sum.cell(r, 1, label), LEFT, bold=bold, bg=bg)
+        dat(ws_sum.cell(r, 2, val if val != "" else None), CENTER, bold=bold, bg=bg)
 
-    # ── STEP 1 시트들 ────────────────────────────────────────────
-    write_sheet(wb, "1단계_수량불일치", s1_diff,
-                "C00000", "FCE4D6",
-                "이동처리(F열)", "라벨발행(I열)",
-                "이동처리(F열)", "라벨발행(I열)")
+    A, B = "이동처리(F열)", "라벨발행(I열)"
+    C, D = "라벨발행(I열)", "작업내역(K÷2)"
 
-    write_sheet(wb, "1단계_이동처리만", s1_wh_only,
-                "843C0C", "FFF2CC",
-                "이동처리(F열)", "라벨발행(I열)",
-                "이동처리(F열)", "라벨발행(I열)")
-
-    write_sheet(wb, "1단계_라벨발행만", s1_label_only,
-                "7030A0", "EAD1F5",
-                "이동처리(F열)", "라벨발행(I열)",
-                "이동처리(F열)", "라벨발행(I열)")
-
-    write_sheet(wb, "1단계_일치", s1_matched,
-                "375623", "E2EFDA",
-                "이동처리(F열)", "라벨발행(I열)",
-                "이동처리(F열)", "라벨발행(I열)")
-
-    # ── STEP 2 시트들 ────────────────────────────────────────────
-    write_sheet(wb, "2단계_수량불일치", s2_diff,
-                "C00000", "FCE4D6",
-                "라벨발행(I열)", "작업내역(K÷2)",
-                "라벨발행(I열)", "작업내역(K÷2)")
-
-    write_sheet(wb, "2단계_라벨발행만", s2_label_only,
-                "843C0C", "FFF2CC",
-                "라벨발행(I열)", "작업내역(K÷2)",
-                "라벨발행(I열)", "작업내역(K÷2)")
-
-    write_sheet(wb, "2단계_작업내역만", s2_cat_only,
-                "7030A0", "EAD1F5",
-                "라벨발행(I열)", "작업내역(K÷2)",
-                "라벨발행(I열)", "작업내역(K÷2)")
-
-    write_sheet(wb, "2단계_일치", s2_matched,
-                "375623", "E2EFDA",
-                "라벨발행(I열)", "작업내역(K÷2)",
-                "라벨발행(I열)", "작업내역(K÷2)")
+    write_sheet(wb, "1단계_수량불일치",  s1_diff,     "C00000", "FCE4D6", A, B)
+    write_sheet(wb, "1단계_이동처리만",  s1_wh_only,  "843C0C", "FFF2CC", A, B)
+    write_sheet(wb, "1단계_라벨발행만",  s1_lbl_only, "7030A0", "EAD1F5", A, B, show_date=False)
+    write_sheet(wb, "1단계_일치",        s1_matched,  "375623", "E2EFDA", A, B)
+    write_sheet(wb, "2단계_수량불일치",  s2_diff,     "C00000", "FCE4D6", C, D, show_date=False)
+    write_sheet(wb, "2단계_라벨발행만",  s2_lbl_only, "843C0C", "FFF2CC", C, D, show_date=False)
+    write_sheet(wb, "2단계_작업내역만",  s2_cat_only, "7030A0", "EAD1F5", C, D, show_date=False)
+    write_sheet(wb, "2단계_일치",        s2_matched,  "375623", "E2EFDA", C, D, show_date=False)
 
     wb.save(output_path)
     print(f"\n저장 완료: {output_path}")
@@ -363,49 +311,43 @@ def main():
         OUT_PATH = sys.argv[4]
 
     print("=" * 60)
-    print("[STEP 1] 이동처리 파일 로드 중...")
+    print("[STEP 1] 이동처리 파일 로드 (TCT 케이터링 이동처리만)...")
     wh_qty, wh_info = load_warehouse(WH_PATH)
-    print(f"  TCT 케이터링 이동처리 항목: {len(wh_qty)}건 (날짜+ERP코드 기준)")
+    print(f"  항목 수: {len(wh_qty)}건 (ERP코드 기준 합산)")
 
-    print("\n[STEP 1] 라벨발행 파일 로드 중 (취소/변경 자동 제외)...")
+    print("\n[STEP 1] 라벨발행 파일 로드 (취소/변경 자동 제외)...")
     lbl_s1_qty, lbl_s1_info, lbl_s2_qty, lbl_s2_info = load_label(LBL_PATH)
-    print(f"  유효 라벨 항목(Step1): {len(lbl_s1_qty)}건")
-    print(f"  유효 라벨 항목(Step2): {len(lbl_s2_qty)}건")
+    print(f"  Step1 항목: {len(lbl_s1_qty)}건 (ERP코드 기준)")
+    print(f"  Step2 항목: {len(lbl_s2_qty)}건 (급품목코드 기준)")
 
-    print("\n[STEP 2] 작업내역 파일 로드 중 (수량 ÷2 적용)...")
+    print("\n[STEP 2] 작업내역 파일 로드 (수량 ÷2)...")
     cat_qty, cat_info = load_catering(CAT_PATH)
-    print(f"  작업내역 항목: {len(cat_qty)}건 (날짜+제품코드 기준)")
+    print(f"  항목 수: {len(cat_qty)}건 (제품코드 기준)")
 
-    print("\n[비교 수행]")
-    s1_matched, s1_diff, s1_wh_only, s1_label_only = compare(
-        wh_qty, wh_info, lbl_s1_qty, lbl_s1_info,
-        "이동처리(F열)", "라벨발행(I열)"
-    )
-    s2_matched, s2_diff, s2_label_only, s2_cat_only = compare(
-        lbl_s2_qty, lbl_s2_info, cat_qty, cat_info,
-        "라벨발행(I열)", "작업내역(K÷2)"
-    )
+    s1_matched, s1_diff, s1_wh_only, s1_lbl_only = compare(
+        wh_qty, wh_info, lbl_s1_qty, lbl_s1_info, "이동처리(F열)", "라벨발행(I열)")
+    s2_matched, s2_diff, s2_lbl_only, s2_cat_only = compare(
+        lbl_s2_qty, lbl_s2_info, cat_qty, cat_info, "라벨발행(I열)", "작업내역(K÷2)")
 
-    s1_common = len(s1_matched) + len(s1_diff)
-    s2_common = len(s2_matched) + len(s2_diff)
+    s1c = len(s1_matched) + len(s1_diff)
+    s2c = len(s2_matched) + len(s2_diff)
 
     print("\n" + "=" * 60)
-    print("[ STEP 1 결과: 이동처리 vs 라벨발행 ]")
-    print(f"  ✅ 일치:          {len(s1_matched):>5}건  ({len(s1_matched)/s1_common*100:.1f}%, 공통기준)" if s1_common else "")
-    print(f"  ❌ 수량불일치:    {len(s1_diff):>5}건  ({len(s1_diff)/s1_common*100:.1f}%)" if s1_common else "")
-    print(f"  ⚠️  이동처리만:   {len(s1_wh_only):>5}건")
-    print(f"  ⚠️  라벨발행만:   {len(s1_label_only):>5}건")
+    print("[ STEP 1: 이동처리(F열) vs 라벨발행(I열) ]")
+    print(f"  ✅ 일치:        {len(s1_matched):>5}건  ({len(s1_matched)/s1c*100:.1f}%)" if s1c else "")
+    print(f"  ❌ 수량불일치:  {len(s1_diff):>5}건  ({len(s1_diff)/s1c*100:.1f}%)" if s1c else "")
+    print(f"  ⚠️  이동처리만: {len(s1_wh_only):>5}건")
+    print(f"  ⚠️  라벨발행만: {len(s1_lbl_only):>5}건")
 
-    print("\n[ STEP 2 결과: 라벨발행(L) vs 작업내역(G) ]")
-    print(f"  ✅ 일치:          {len(s2_matched):>5}건  ({len(s2_matched)/s2_common*100:.1f}%, 공통기준)" if s2_common else "")
-    print(f"  ❌ 수량불일치:    {len(s2_diff):>5}건  ({len(s2_diff)/s2_common*100:.1f}%)" if s2_common else "")
-    print(f"  ⚠️  라벨발행만:   {len(s2_label_only):>5}건")
-    print(f"  ⚠️  작업내역만:   {len(s2_cat_only):>5}건")
+    print("\n[ STEP 2: 라벨발행(L열) vs 작업내역(G열) ]")
+    print(f"  ✅ 일치:        {len(s2_matched):>5}건  ({len(s2_matched)/s2c*100:.1f}%)" if s2c else "")
+    print(f"  ❌ 수량불일치:  {len(s2_diff):>5}건  ({len(s2_diff)/s2c*100:.1f}%)" if s2c else "")
+    print(f"  ⚠️  라벨발행만: {len(s2_lbl_only):>5}건")
+    print(f"  ⚠️  작업내역만: {len(s2_cat_only):>5}건")
     print("=" * 60)
 
-    save_all(s1_matched, s1_diff, s1_wh_only, s1_label_only,
-             s2_matched, s2_diff, s2_label_only, s2_cat_only,
-             OUT_PATH)
+    save_all(s1_matched, s1_diff, s1_wh_only, s1_lbl_only,
+             s2_matched, s2_diff, s2_lbl_only, s2_cat_only, OUT_PATH)
 
 
 if __name__ == "__main__":
