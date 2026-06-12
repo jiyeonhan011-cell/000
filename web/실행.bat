@@ -1,33 +1,22 @@
 @echo off
-chcp 65001 > nul
+cd /d "%~dp0"
 
-:: Try py launcher first, then python
 py --version >nul 2>&1
 IF NOT ERRORLEVEL 1 (
-    SET PYTHON=py
-    GOTO FOUND
+    py -m pip install streamlit xlrd openpyxl -q
+    py -m streamlit run app.py --server.headless false --browser.gatherUsageStats false
+    pause
+    exit /b
 )
 
 python --version >nul 2>&1
 IF NOT ERRORLEVEL 1 (
-    SET PYTHON=python
-    GOTO FOUND
-)
-
-python3 --version >nul 2>&1
-IF NOT ERRORLEVEL 1 (
-    SET PYTHON=python3
-    GOTO FOUND
+    python -m pip install streamlit xlrd openpyxl -q
+    python -m streamlit run app.py --server.headless false --browser.gatherUsageStats false
+    pause
+    exit /b
 )
 
 echo Python not found. Install from https://www.python.org/downloads/
 echo Check "Add Python to PATH" during install.
 pause
-exit /b 1
-
-:FOUND
-%PYTHON% -m pip install streamlit xlrd openpyxl -q
-%PYTHON% -m streamlit run app.py --server.headless false --browser.gatherUsageStats false
-IF ERRORLEVEL 1 (
-    pause
-)
