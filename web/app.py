@@ -240,12 +240,20 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     wb.save(buf)
     buf.seek(0)
 
+    A,B = "이동처리(F열)","라벨발행(I열)"
+    C,D = "라벨발행(I열)","작업내역(K÷2)"
+    def sumq(rows, col): return sum(r[col] for r in rows if isinstance(r.get(col), (int,float)))
+    all_s1 = s1m+s1d+s1w+s1l
+    all_s2 = s2m+s2d+s2l+s2c+s2pre
+
     return buf, {
         "s1_matched":len(s1m),"s1_diff":len(s1d),"s1_wh":len(s1w),"s1_lbl":len(s1l),
         "s1_rate":f"{len(s1m)/s1c*100:.1f}" if s1c else "0",
+        "s1_wh_qty": sumq(all_s1, A), "s1_lbl_qty": sumq(all_s1, B),
         "s2_matched":len(s2m),"s2_diff":len(s2d),"s2_lbl":len(s2l),"s2_cat":len(s2c),
         "s2_pre":len(s2pre),
         "s2_rate":f"{len(s2m)/s2c_cnt*100:.1f}" if s2c_cnt else "0",
+        "s2_lbl_qty": sumq(all_s2, C), "s2_cat_qty": sumq(all_s2, D),
         "canceled": canceled,
     }
 
@@ -328,17 +336,25 @@ if run_btn:
             st.success("✅ 검수 완료!")
 
             st.markdown("### STEP 1 결과: 이동처리 vs 라벨발행")
+            c1,c2 = st.columns(2)
+            c1.metric("이동처리 이동수량 합계", f"{result['s1_wh_qty']:,.0f}")
+            c2.metric("라벨발행 출고수량 합계", f"{result['s1_lbl_qty']:,.0f}",
+                      delta=f"{result['s1_lbl_qty']-result['s1_wh_qty']:+,.0f}")
             c1,c2,c3,c4 = st.columns(4)
-            c1.metric("✅ 일치",     result["s1_matched"])
-            c2.metric("❌ 수량불일치", result["s1_diff"])
+            c1.metric("✅ 일치 품목",     result["s1_matched"])
+            c2.metric("❌ 수량불일치 품목", result["s1_diff"])
             c3.metric("⚠️ 이동처리만", result["s1_wh"])
             c4.metric("⚠️ 라벨발행만", result["s1_lbl"])
             st.caption(f"일치율(공통기준): {result['s1_rate']}%  |  라벨발행 취소/변경 제외: {result['canceled']}건")
 
             st.markdown("### STEP 2 결과: 라벨발행 vs 작업내역")
+            c1,c2 = st.columns(2)
+            c1.metric("라벨발행 출고수량 합계", f"{result['s2_lbl_qty']:,.0f}")
+            c2.metric("작업내역 수량 합계(÷2)", f"{result['s2_cat_qty']:,.0f}",
+                      delta=f"{result['s2_cat_qty']-result['s2_lbl_qty']:+,.0f}")
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("✅ 일치",       result["s2_matched"])
-            c2.metric("❌ 수량불일치", result["s2_diff"])
+            c1.metric("✅ 일치 품목",       result["s2_matched"])
+            c2.metric("❌ 수량불일치 품목", result["s2_diff"])
             c3.metric("⚠️ 라벨발행만", result["s2_lbl"])
             c4.metric("⚠️ 작업내역만", result["s2_cat"])
             c5.metric("✅ 선작업(정상)", result["s2_pre"])
