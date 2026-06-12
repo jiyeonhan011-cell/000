@@ -1,43 +1,26 @@
 #!/usr/bin/env python3
 """
-창고이동 3단계 검수 웹 프로그램
-실행: python3 app.py  →  브라우저에서 http://localhost:5000 접속
+창고이동 3단계 검수 - Streamlit 버전
+실행: streamlit run app.py
 """
 
-import os, re, uuid, threading
+import os, re, sys, io, tempfile
 from pathlib import Path
 from collections import defaultdict
-from flask import Flask, render_template, request, jsonify, send_file, session
 
 try:
+    import streamlit as st
     import xlrd, openpyxl
     from openpyxl.styles import Font as XFont, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 except ImportError:
-    os.system("pip install xlrd openpyxl -q")
+    os.system(f"{sys.executable} -m pip install streamlit xlrd openpyxl -q")
+    import streamlit as st
     import xlrd, openpyxl
     from openpyxl.styles import Font as XFont, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
-app = Flask(__name__)
-app.secret_key = "warehouse-inspection-2026"
-app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
-
-# 스크립트 위치 기준으로 경로 설정 (어디서 실행해도 동작)
-BASE_DIR   = Path(__file__).parent
-UPLOAD_DIR = BASE_DIR / "uploads"
-RESULT_DIR = BASE_DIR / "results"
-UPLOAD_DIR.mkdir(exist_ok=True)
-RESULT_DIR.mkdir(exist_ok=True)
-
-# CORS 허용 (모든 요청 허용)
-@app.after_request
-def add_cors(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    return response
-
-# ── 검수 로직 ─────────────────────────────────────────────────────
+# ── 검수 로직 ──────────────────────────────────────────────────────
 
 BORDER_STYLE = Border(
     left=Side(style="thin"), right=Side(style="thin"),
@@ -200,7 +183,7 @@ def write_xl_sheet(wb, title, rows, hdr_bg, row_bg, col_a, col_b, show_date=True
     ws.auto_filter.ref = f"A1:{get_column_letter(len(base_h))}1"
 
 
-def run_inspection(wh_path, lbl_path, cat_path, pre_path, out_path):
+def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     wh_qty, wh_info = load_warehouse(wh_path)
     ls1q,ls1i,ls2q,ls2i,canceled = load_label(lbl_path)
     cat_qty, cat_info = load_catering(cat_path)
@@ -252,86 +235,124 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path, out_path):
     if s2pre:
         write_xl_sheet(wb,"2단계_선작업(정상)",s2pre,"4472C4","DAE8FC",C,D,show_date=False,
                        extra_cols=[("선작업qty","선작업qty"),("보정후","보정후"),("급식사","급식사")])
-    wb.save(out_path)
 
-    return {
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return buf, {
         "s1_matched":len(s1m),"s1_diff":len(s1d),"s1_wh":len(s1w),"s1_lbl":len(s1l),
         "s1_rate":f"{len(s1m)/s1c*100:.1f}" if s1c else "0",
         "s2_matched":len(s2m),"s2_diff":len(s2d),"s2_lbl":len(s2l),"s2_cat":len(s2c),
         "s2_pre":len(s2pre),
         "s2_rate":f"{len(s2m)/s2c_cnt*100:.1f}" if s2c_cnt else "0",
         "canceled": canceled,
-        "wh_total": len(wh_qty),
     }
 
 
-# ── Flask 라우트 ───────────────────────────────────────────────────
+# ── Streamlit UI ───────────────────────────────────────────────────
 
-@app.route("/ping")
-def ping():
-    return jsonify({"ok": True})
+st.set_page_config(
+    page_title="창고이동 3단계 검수",
+    page_icon="📦",
+    layout="wide",
+)
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+st.markdown("""
+<style>
+    .main { max-width: 900px; margin: 0 auto; }
+    .stFileUploader > label { font-size: 1rem; font-weight: 600; }
+    div[data-testid="metric-container"] {
+        background: #f0f4ff; border-radius: 8px; padding: 12px;
+    }
+    .result-box {
+        background: #f8f9fa; border-radius: 10px; padding: 20px;
+        border: 1px solid #dee2e6; margin-top: 16px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-@app.route("/inspect", methods=["POST"])
-def inspect():
-    try:
-        sid = str(uuid.uuid4())[:8]
-        files_saved = {}
+st.title("📦 창고이동 3단계 검수 프로그램")
+st.caption("이동처리 → 라벨발행 → 작업내역 자동 비교")
 
-        for key in ["warehouse", "label", "catering", "prework"]:
-            f = request.files.get(key)
-            if f and f.filename:
-                ext = Path(f.filename).suffix
-                dest = UPLOAD_DIR / f"{sid}_{key}{ext}"
-                f.save(dest)
-                files_saved[key] = str(dest)
+st.divider()
 
-        if not all(k in files_saved for k in ["warehouse","label","catering"]):
-            return jsonify({"error": "필수 파일(①②③)을 모두 업로드하세요."}), 400
+col1, col2 = st.columns(2)
 
-        out_path = str(RESULT_DIR / f"{sid}_결과.xlsx")
-        result = run_inspection(
-            files_saved["warehouse"],
-            files_saved["label"],
-            files_saved["catering"],
-            files_saved.get("prework"),
-            out_path,
-        )
-        result["file_id"] = sid
-        return jsonify(result)
+with col1:
+    st.subheader("① 이동처리 파일")
+    wh_file = st.file_uploader("이동처리 .xls 파일", type=["xls","xlsx"], key="wh",
+                                label_visibility="collapsed")
+    if wh_file: st.success(f"✓ {wh_file.name}")
 
-    except Exception as e:
-        import traceback
-        return jsonify({"error": traceback.format_exc()}), 500
+    st.subheader("② 라벨발행 파일")
+    lbl_file = st.file_uploader("라벨발행 .xlsx 파일", type=["xls","xlsx"], key="lbl",
+                                 label_visibility="collapsed")
+    if lbl_file: st.success(f"✓ {lbl_file.name}")
 
-@app.route("/download/<sid>")
-def download(sid):
-    path = RESULT_DIR / f"{sid}_결과.xlsx"
-    if not path.exists():
-        return "파일을 찾을 수 없습니다.", 404
-    return send_file(path, as_attachment=True,
-                     download_name="창고이동_3단계검수결과.xlsx")
+with col2:
+    st.subheader("③ 작업내역 파일")
+    cat_file = st.file_uploader("작업내역 .xlsx 파일", type=["xls","xlsx"], key="cat",
+                                 label_visibility="collapsed")
+    if cat_file: st.success(f"✓ {cat_file.name}")
 
-if __name__ == "__main__":
-    import socket, webbrowser, threading
+    st.subheader("④ 선작업 파일 (선택)")
+    pre_file = st.file_uploader("선작업 .xlsx 파일 (없으면 비워두세요)", type=["xls","xlsx"], key="pre",
+                                 label_visibility="collapsed")
+    if pre_file: st.info(f"✓ {pre_file.name}")
 
-    # 사용 가능한 포트 자동 탐색 (5000 → 5001 → 5002 ...)
-    port = 5000
-    for p in range(5000, 5010):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("localhost", p)) != 0:
-                port = p; break
+st.divider()
 
-    url = f"http://localhost:{port}"
-    print("=" * 50)
-    print("창고이동 3단계 검수 웹 프로그램")
-    print(f"브라우저에서 접속: {url}")
-    print("종료하려면 이 창을 닫으세요.")
-    print("=" * 50)
+run_btn = st.button("🔍 검수 시작", type="primary", use_container_width=True,
+                    disabled=not (wh_file and lbl_file and cat_file))
 
-    # 1.5초 후 브라우저 자동 오픈
-    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    app.run(debug=False, host="0.0.0.0", port=port)
+if not (wh_file and lbl_file and cat_file):
+    st.warning("① ② ③ 파일을 모두 업로드하면 검수 버튼이 활성화됩니다.")
+
+if run_btn:
+    with st.spinner("검수 중..."):
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                def save(f, name):
+                    p = Path(tmpdir) / name
+                    p.write_bytes(f.read())
+                    return str(p)
+
+                wh_path  = save(wh_file,  "warehouse"  + Path(wh_file.name).suffix)
+                lbl_path = save(lbl_file, "label"      + Path(lbl_file.name).suffix)
+                cat_path = save(cat_file, "catering"   + Path(cat_file.name).suffix)
+                pre_path = save(pre_file, "prework"    + Path(pre_file.name).suffix) if pre_file else None
+
+                buf, result = run_inspection(wh_path, lbl_path, cat_path, pre_path)
+
+            st.success("✅ 검수 완료!")
+
+            st.markdown("### STEP 1 결과: 이동처리 vs 라벨발행")
+            c1,c2,c3,c4 = st.columns(4)
+            c1.metric("✅ 일치",     result["s1_matched"])
+            c2.metric("❌ 수량불일치", result["s1_diff"])
+            c3.metric("⚠️ 이동처리만", result["s1_wh"])
+            c4.metric("⚠️ 라벨발행만", result["s1_lbl"])
+            st.caption(f"일치율(공통기준): {result['s1_rate']}%  |  라벨발행 취소/변경 제외: {result['canceled']}건")
+
+            st.markdown("### STEP 2 결과: 라벨발행 vs 작업내역")
+            c1,c2,c3,c4,c5 = st.columns(5)
+            c1.metric("✅ 일치",       result["s2_matched"])
+            c2.metric("❌ 수량불일치", result["s2_diff"])
+            c3.metric("⚠️ 라벨발행만", result["s2_lbl"])
+            c4.metric("⚠️ 작업내역만", result["s2_cat"])
+            c5.metric("✅ 선작업(정상)", result["s2_pre"])
+            st.caption(f"일치율(공통기준): {result['s2_rate']}%")
+
+            st.download_button(
+                label="📥 결과 엑셀 다운로드",
+                data=buf,
+                file_name="창고이동_3단계검수결과.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary",
+            )
+
+        except Exception as e:
+            import traceback
+            st.error(f"오류가 발생했습니다:\n\n```\n{traceback.format_exc()}\n```")
