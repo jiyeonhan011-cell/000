@@ -27,7 +27,7 @@ exit /b 1
 
 :FOUND
 %PYTHON% -m pip install streamlit xlrd openpyxl -q
-streamlit run app.py --server.headless false --browser.gatherUsageStats false
+%PYTHON% -m streamlit run app.py --server.headless false --browser.gatherUsageStats false
 IF ERRORLEVEL 1 (
     pause
 )
