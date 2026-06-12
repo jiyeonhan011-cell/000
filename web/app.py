@@ -96,18 +96,27 @@ def load_catering(path):
     return {k:v/2 for k,v in qty_map.items()}, info_map
 
 def load_prework(path):
-    if not path or not os.path.exists(path): return {}
+    if not path or not os.path.exists(path): return {}, set()
     wb = openpyxl.load_workbook(path)
-    ws = wb['선작업-pre_qty'] if '선작업-pre_qty' in wb.sheetnames else wb.active
+    # 선작업 코드
     items = {}
-    for i in range(2, ws.max_row + 1):
-        code = clean_code(ws.cell(i,2).value)
-        if not code: continue
-        if code not in items:
-            items[code] = {"품목명":str(ws.cell(i,3).value or ''),"급식사":str(ws.cell(i,1).value or ''),"선작업qty":0.0,"보정후":0.0}
-        items[code]["선작업qty"] += float(ws.cell(i,7).value or 0)
-        items[code]["보정후"]    += float(ws.cell(i,8).value or 0)
-    return items
+    if '선작업-pre_qty' in wb.sheetnames:
+        ws = wb['선작업-pre_qty']
+        for i in range(2, ws.max_row + 1):
+            code = clean_code(ws.cell(i,2).value)
+            if not code: continue
+            if code not in items:
+                items[code] = {"품목명":str(ws.cell(i,3).value or ''),"급식사":str(ws.cell(i,1).value or ''),"선작업qty":0.0,"보정후":0.0}
+            items[code]["선작업qty"] += float(ws.cell(i,7).value or 0)
+            items[code]["보정후"]    += float(ws.cell(i,8).value or 0)
+    # BOX-EA 환산 코드
+    box_ea = set()
+    if 'BOX-EA환산' in wb.sheetnames:
+        ws2 = wb['BOX-EA환산']
+        for i in range(2, ws2.max_row + 1):
+            code = clean_code(ws2.cell(i,2).value)
+            if code: box_ea.add(code)
+    return items, box_ea
 
 def compare(a_qty, a_info, b_qty, b_info, col_a, col_b):
     matched, qty_diff, a_only, b_only = [], [], [], []
@@ -187,9 +196,17 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     wh_qty, wh_info = load_warehouse(wh_path)
     ls1q,ls1i,ls2q,ls2i,canceled = load_label(lbl_path)
     cat_qty, cat_info = load_catering(cat_path)
-    prework = load_prework(pre_path) if pre_path else {}
+    prework, box_ea_codes = load_prework(pre_path) if pre_path else ({}, set())
 
     s1m,s1d,s1w,s1l = compare(wh_qty,wh_info,ls1q,ls1i,"이동처리(F열)","라벨발행(I열)")
+
+    # BOX-EA 환산 품목을 수량불일치에서 분리
+    if box_ea_codes:
+        s1box = [r for r in s1d if r["코드"] in box_ea_codes]
+        s1d   = [r for r in s1d if r["코드"] not in box_ea_codes]
+    else:
+        s1box = []
+
     s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
     if prework:
@@ -205,8 +222,9 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     s1c = len(s1m)+len(s1d); s2c_cnt = len(s2m)+len(s2d)
     summary_rows = [
         ("── STEP 1: 이동처리(F열) vs 라벨발행(I열) ──",""),
-        ("  전체 항목 (ERP코드 기준)", len(s1m)+len(s1d)+len(s1w)+len(s1l)),
+        ("  전체 항목 (ERP코드 기준)", len(s1m)+len(s1d)+len(s1w)+len(s1l)+len(s1box)),
         ("  ✅ 일치", len(s1m)),("  ❌ 수량 불일치", len(s1d)),
+        ("  ✅ BOX/EA환산(정상)", len(s1box)),
         ("  ⚠️ 이동처리에만", len(s1w)),("  ⚠️ 라벨발행에만", len(s1l)),
         ("  일치율(공통기준)", f"{len(s1m)/s1c*100:.1f}%" if s1c else "-"),
         ("",""),
@@ -228,6 +246,8 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     write_xl_sheet(wb,"1단계_이동처리만",s1w,"843C0C","FFF2CC",A,B)
     write_xl_sheet(wb,"1단계_라벨발행만",s1l,"7030A0","EAD1F5",A,B,show_date=False)
     write_xl_sheet(wb,"1단계_일치",      s1m,"375623","E2EFDA",A,B)
+    if s1box:
+        write_xl_sheet(wb,"1단계_BOX_EA환산(정상)",s1box,"4472C4","DAE8FC",A,B)
     write_xl_sheet(wb,"2단계_수량불일치",s2d,"C00000","FCE4D6",C,D,show_date=False)
     write_xl_sheet(wb,"2단계_라벨발행만",s2l,"843C0C","FFF2CC",C,D,show_date=False)
     write_xl_sheet(wb,"2단계_작업내역만",s2c,"7030A0","EAD1F5",C,D,show_date=False)
@@ -248,6 +268,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
 
     return buf, {
         "s1_matched":len(s1m),"s1_diff":len(s1d),"s1_wh":len(s1w),"s1_lbl":len(s1l),
+        "s1_box":len(s1box),
         "s1_rate":f"{len(s1m)/s1c*100:.1f}" if s1c else "0",
         "s1_wh_qty": sumq(all_s1, A), "s1_lbl_qty": sumq(all_s1, B),
         "s2_matched":len(s2m),"s2_diff":len(s2d),"s2_lbl":len(s2l),"s2_cat":len(s2c),
@@ -340,11 +361,12 @@ if run_btn:
             c1.metric("이동처리 이동수량 합계", f"{result['s1_wh_qty']:,.0f}")
             c2.metric("라벨발행 출고수량 합계", f"{result['s1_lbl_qty']:,.0f}",
                       delta=f"{result['s1_lbl_qty']-result['s1_wh_qty']:+,.0f}")
-            c1,c2,c3,c4 = st.columns(4)
-            c1.metric("✅ 일치 품목",     result["s1_matched"])
+            c1,c2,c3,c4,c5 = st.columns(5)
+            c1.metric("✅ 일치 품목",       result["s1_matched"])
             c2.metric("❌ 수량불일치 품목", result["s1_diff"])
-            c3.metric("⚠️ 이동처리만", result["s1_wh"])
-            c4.metric("⚠️ 라벨발행만", result["s1_lbl"])
+            c3.metric("✅ BOX/EA환산(정상)", result["s1_box"])
+            c4.metric("⚠️ 이동처리만",      result["s1_wh"])
+            c5.metric("⚠️ 라벨발행만",      result["s1_lbl"])
             st.caption(f"일치율(공통기준): {result['s1_rate']}%  |  라벨발행 취소/변경 제외: {result['canceled']}건")
 
             st.markdown("### STEP 2 결과: 라벨발행 vs 작업내역")
