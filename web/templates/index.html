@@ -346,20 +346,27 @@ async function runInspection() {
   if (files.pre) fd.append("prework", files.pre);
 
   try {
+    // 서버 연결 확인
+    await fetch("/ping").catch(() => {
+      throw new Error("서버에 연결할 수 없습니다.\n\n실행.bat(Windows) 또는 실행.sh(Mac/Linux)를 먼저 실행해주세요.\n\n서버가 실행 중이라면 브라우저 주소창에서\nhttp://localhost:5000 으로 접속하세요.");
+    });
+
     const res = await fetch("/inspect", { method:"POST", body:fd });
     const data = await res.json();
     clearInterval(timer);
 
     if (data.error) {
-      eb.textContent = data.error; eb.style.display = "block";
+      eb.textContent = "⚠️ 오류 내용:\n\n" + data.error;
+      eb.style.display = "block";
       showToast("오류가 발생했습니다.");
     } else {
       showResult(data);
     }
   } catch(e) {
     clearInterval(timer);
-    eb.textContent = String(e); eb.style.display = "block";
-    showToast("네트워크 오류가 발생했습니다.");
+    eb.textContent = String(e);
+    eb.style.display = "block";
+    showToast("오류가 발생했습니다.");
   }
 
   btn.disabled = false;

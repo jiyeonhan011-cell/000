@@ -21,11 +21,21 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = "warehouse-inspection-2026"
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
 
-UPLOAD_DIR = Path("uploads")
-RESULT_DIR = Path("results")
+# 스크립트 위치 기준으로 경로 설정 (어디서 실행해도 동작)
+BASE_DIR   = Path(__file__).parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+RESULT_DIR = BASE_DIR / "results"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULT_DIR.mkdir(exist_ok=True)
+
+# CORS 허용 (모든 요청 허용)
+@app.after_request
+def add_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
 
 # ── 검수 로직 ─────────────────────────────────────────────────────
 
@@ -257,6 +267,10 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path, out_path):
 
 # ── Flask 라우트 ───────────────────────────────────────────────────
 
+@app.route("/ping")
+def ping():
+    return jsonify({"ok": True})
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -302,8 +316,22 @@ def download(sid):
                      download_name="창고이동_3단계검수결과.xlsx")
 
 if __name__ == "__main__":
+    import socket, webbrowser, threading
+
+    # 사용 가능한 포트 자동 탐색 (5000 → 5001 → 5002 ...)
+    port = 5000
+    for p in range(5000, 5010):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("localhost", p)) != 0:
+                port = p; break
+
+    url = f"http://localhost:{port}"
     print("=" * 50)
     print("창고이동 3단계 검수 웹 프로그램")
-    print("브라우저에서 접속: http://localhost:5000")
+    print(f"브라우저에서 접속: {url}")
+    print("종료하려면 이 창을 닫으세요.")
     print("=" * 50)
-    app.run(debug=False, port=5000)
+
+    # 1.5초 후 브라우저 자동 오픈
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    app.run(debug=False, host="0.0.0.0", port=port)
