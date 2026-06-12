@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>창고이동 3단계 검수</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+    background: #F0F4F8;
+    color: #1A202C;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1F4E79, #2B6CB0);
+    color: white;
+    padding: 28px 40px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  }
+  header h1 { font-size: 24px; font-weight: 700; }
+  header p  { margin-top: 6px; font-size: 14px; opacity: .8; }
+
+  .container { max-width: 860px; margin: 36px auto; padding: 0 20px; }
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    margin-bottom: 24px;
+  }
+  .card h2 {
+    font-size: 16px; font-weight: 700;
+    color: #1F4E79; margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #EBF4FF;
+  }
+
+  .file-row {
+    display: flex; align-items: center;
+    gap: 12px; margin-bottom: 14px;
+  }
+  .file-row label {
+    width: 200px; font-size: 13px;
+    font-weight: 600; color: #4A5568; flex-shrink: 0;
+  }
+  .file-row label span.req { color: #E53E3E; margin-left: 3px; }
+  .file-row label span.opt { color: #718096; font-weight: 400; font-size:12px; }
+
+  .drop-zone {
+    flex: 1; border: 2px dashed #CBD5E0;
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 13px; color: #718096;
+    cursor: pointer; transition: all .2s;
+    background: #FAFAFA;
+    display: flex; align-items: center; gap: 8px;
+    min-height: 44px; position: relative;
+    overflow: hidden;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #1F4E79; background: #EBF8FF; color: #1F4E79;
+  }
+  .drop-zone.filled {
+    border-color: #38A169; background: #F0FFF4; color: #276749; border-style: solid;
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-zone .icon { font-size: 18px; }
+  .drop-zone .name { font-weight: 600; font-size: 13px; }
+  .drop-zone .clear {
+    margin-left: auto; cursor: pointer; font-size: 16px;
+    color: #A0AEC0; z-index: 2; padding: 4px;
+    display: none;
+  }
+  .drop-zone.filled .clear { display: block; }
+
+  .btn-run {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, #1F4E79, #2B6CB0);
+    color: white; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    transition: all .2s; letter-spacing: .5px;
+  }
+  .btn-run:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(31,78,121,.4); }
+  .btn-run:disabled { background: #A0AEC0; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* 진행바 */
+  .progress-wrap { margin-top: 16px; display: none; }
+  .progress-bar {
+    height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #1F4E79, #63B3ED);
+    border-radius: 3px; width: 0%;
+    animation: progress-anim 1.5s ease-in-out infinite;
+  }
+  @keyframes progress-anim {
+    0%  { width: 10%; margin-left: 0; }
+    50% { width: 60%; margin-left: 20%; }
+    100%{ width: 10%; margin-left: 90%; }
+  }
+  .progress-label { font-size: 12px; color: #718096; margin-top: 6px; text-align: center; }
+
+  /* 결과 카드 */
+  #result-section { display: none; }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:600px){ .result-grid { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    border-radius: 12px; padding: 20px 24px;
+    border-left: 5px solid;
+  }
+  .stat-card.step1 { border-color: #1F4E79; background: #EBF4FF; }
+  .stat-card.step2 { border-color: #4472C4; background: #EEF2FF; }
+  .stat-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+  .stat-card h3.step1 { color: #1F4E79; }
+  .stat-card h3.step2 { color: #4472C4; }
+
+  .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .stat-row .stat-label { font-size: 13px; color: #4A5568; }
+  .stat-row .stat-val   { font-size: 18px; font-weight: 800; }
+  .stat-row .stat-val.green  { color: #38A169; }
+  .stat-row .stat-val.red    { color: #E53E3E; }
+  .stat-row .stat-val.orange { color: #DD6B20; }
+  .stat-row .stat-val.blue   { color: #4472C4; }
+  .stat-row .stat-val.navy   { color: #1F4E79; }
+
+  .rate-badge {
+    display: inline-block; padding: 4px 12px;
+    border-radius: 20px; font-size: 13px; font-weight: 700;
+    margin-top: 10px;
+  }
+  .rate-badge.good { background: #C6F6D5; color: #276749; }
+  .rate-badge.warn { background: #FEEBC8; color: #7B341E; }
+  .rate-badge.bad  { background: #FED7D7; color: #742A2A; }
+
+  .btn-download {
+    display: block; width: 100%; padding: 16px;
+    background: linear-gradient(135deg, #276749, #38A169);
+    color: white; border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    text-align: center; text-decoration: none;
+    transition: all .2s; margin-top: 4px;
+  }
+  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(56,161,105,.4); }
+
+  .error-box {
+    background: #FFF5F5; border: 1px solid #FEB2B2;
+    border-radius: 10px; padding: 16px; margin-top: 16px;
+    color: #C53030; font-size: 13px; display: none;
+    white-space: pre-wrap; word-break: break-all;
+  }
+
+  /* 토스트 */
+  .toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    background: #2D3748; color: white; padding: 12px 24px;
+    border-radius: 8px; font-size: 14px; font-weight: 600;
+    opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📦 창고이동 3단계 검수</h1>
+  <p>이동처리 → 라벨발행 → 작업내역 수량 자동 비교 · 검수</p>
+</header>
+
+<div class="container">
+
+  <!-- 파일 업로드 -->
+  <div class="card">
+    <h2>📂 파일 업로드</h2>
+
+    <div class="file-row">
+      <label>① 이동처리 파일<span class="req">*</span></label>
+      <div class="drop-zone" id="dz-wh" ondragover="onDragOver(event,'dz-wh')" ondragleave="onDragLeave('dz-wh')" ondrop="onDrop(event,'wh')">
+        <input type="file" id="file-wh" accept=".xls,.xlsx" onchange="onFileChange('wh')">
+        <span class="icon">📄</span>
+        <span class="fname" id="fname-wh">파일을 선택하거나 드래그하세요</span>
+        <span class="clear" onclick="clearFile('wh',event)">✕</span>
+      </div>
+    </div>
+
+    <div class="file-row">
+      <label>② 라벨발행 파일<span class="req">*</span></label>
+      <div class="drop-zone" id="dz-lbl" ondragover="onDragOver(event,'dz-lbl')" ondragleave="onDragLeave('dz-lbl')" ondrop="onDrop(event,'lbl')">
+        <input type="file" id="file-lbl" accept=".xlsx" onchange="onFileChange('lbl')">
+        <span class="icon">🏷️</span>
+        <span class="fname" id="fname-lbl">파일을 선택하거나 드래그하세요</span>
+        <span class="clear" onclick="clearFile('lbl',event)">✕</span>
+      </div>
+    </div>
+
+    <div class="file-row">
+      <label>③ 작업내역 파일<span class="req">*</span></label>
+      <div class="drop-zone" id="dz-cat" ondragover="onDragOver(event,'dz-cat')" ondragleave="onDragLeave('dz-cat')" ondrop="onDrop(event,'cat')">
+        <input type="file" id="file-cat" accept=".xlsx" onchange="onFileChange('cat')">
+        <span class="icon">📋</span>
+        <span class="fname" id="fname-cat">파일을 선택하거나 드래그하세요</span>
+        <span class="clear" onclick="clearFile('cat',event)">✕</span>
+      </div>
+    </div>
+
+    <div class="file-row">
+      <label>④ 선작업 파일<span class="opt"> (선택)</span></label>
+      <div class="drop-zone" id="dz-pre" ondragover="onDragOver(event,'dz-pre')" ondragleave="onDragLeave('dz-pre')" ondrop="onDrop(event,'pre')">
+        <input type="file" id="file-pre" accept=".xlsx" onchange="onFileChange('pre')">
+        <span class="icon">⚙️</span>
+        <span class="fname" id="fname-pre">있는 경우에만 선택</span>
+        <span class="clear" onclick="clearFile('pre',event)">✕</span>
+      </div>
+    </div>
+
+    <button class="btn-run" id="btn-run" onclick="runInspection()">검수 시작</button>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+      <div class="progress-label" id="progress-label">파일 분석 중...</div>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+  </div>
+
+  <!-- 결과 -->
+  <div id="result-section">
+    <div class="card">
+      <h2>📊 검수 결과</h2>
+      <div class="result-grid">
+
+        <div class="stat-card step1">
+          <h3 class="step1">STEP 1 │ 이동처리 vs 라벨발행</h3>
+          <div class="stat-row"><span class="stat-label">✅ 일치</span>     <span class="stat-val green"  id="r-s1m">-</span></div>
+          <div class="stat-row"><span class="stat-label">❌ 수량불일치</span><span class="stat-val red"    id="r-s1d">-</span></div>
+          <div class="stat-row"><span class="stat-label">⚠️ 이동처리만</span><span class="stat-val orange" id="r-s1w">-</span></div>
+          <div class="stat-row"><span class="stat-label">⚠️ 라벨발행만</span><span class="stat-val orange" id="r-s1l">-</span></div>
+          <span class="rate-badge" id="r-s1rate">-</span>
+        </div>
+
+        <div class="stat-card step2">
+          <h3 class="step2">STEP 2 │ 라벨발행 vs 작업내역</h3>
+          <div class="stat-row"><span class="stat-label">✅ 일치</span>       <span class="stat-val green"  id="r-s2m">-</span></div>
+          <div class="stat-row"><span class="stat-label">❌ 수량불일치</span>  <span class="stat-val red"    id="r-s2d">-</span></div>
+          <div class="stat-row"><span class="stat-label">⚠️ 라벨발행만</span> <span class="stat-val orange" id="r-s2l">-</span></div>
+          <div class="stat-row"><span class="stat-label">⚠️ 작업내역만</span> <span class="stat-val orange" id="r-s2c">-</span></div>
+          <div class="stat-row"><span class="stat-label">📋 선작업(정상)</span><span class="stat-val blue"   id="r-s2p">-</span></div>
+          <span class="rate-badge" id="r-s2rate">-</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📥 결과 파일 다운로드</h2>
+      <a class="btn-download" id="btn-download" href="#" download>
+        ⬇️ 창고이동_3단계검수결과.xlsx 다운로드
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const files = { wh: null, lbl: null, cat: null, pre: null };
+const labels = { wh:"warehouse", lbl:"label", cat:"catering", pre:"prework" };
+const icons  = { wh:"📄", lbl:"🏷️", cat:"📋", pre:"⚙️" };
+
+function onFileChange(key) {
+  const input = document.getElementById(`file-${key}`);
+  if (input.files[0]) setFile(key, input.files[0]);
+}
+
+function setFile(key, file) {
+  files[key] = file;
+  const dz = document.getElementById(`dz-${key}`);
+  const fn = document.getElementById(`fname-${key}`);
+  fn.textContent = file.name;
+  fn.className = "name";
+  dz.classList.add("filled");
+}
+
+function clearFile(key, e) {
+  e.stopPropagation();
+  files[key] = null;
+  document.getElementById(`file-${key}`).value = "";
+  const dz = document.getElementById(`dz-${key}`);
+  const fn = document.getElementById(`fname-${key}`);
+  const defaults = {wh:"파일을 선택하거나 드래그하세요", lbl:"파일을 선택하거나 드래그하세요",
+                    cat:"파일을 선택하거나 드래그하세요", pre:"있는 경우에만 선택"};
+  fn.textContent = defaults[key]; fn.className = "fname";
+  dz.classList.remove("filled");
+}
+
+function onDragOver(e, id) {
+  e.preventDefault(); document.getElementById(id).classList.add("dragover");
+}
+function onDragLeave(id) {
+  document.getElementById(id).classList.remove("dragover");
+}
+function onDrop(e, key) {
+  e.preventDefault();
+  const id = `dz-${key}`;
+  document.getElementById(id).classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    files[key] = file;
+    const input = document.getElementById(`file-${key}`);
+    const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+    setFile(key, file);
+  }
+}
+
+async function runInspection() {
+  if (!files.wh || !files.lbl || !files.cat) {
+    showToast("①②③ 필수 파일을 모두 선택하세요."); return;
+  }
+
+  const btn = document.getElementById("btn-run");
+  const pw  = document.getElementById("progress-wrap");
+  const pl  = document.getElementById("progress-label");
+  const eb  = document.getElementById("error-box");
+
+  btn.disabled = true;
+  pw.style.display = "block";
+  eb.style.display = "none";
+  document.getElementById("result-section").style.display = "none";
+
+  const steps = ["파일 업로드 중...", "이동처리 파일 분석 중...", "라벨발행 파일 분석 중...",
+                 "작업내역 비교 중...", "결과 파일 생성 중..."];
+  let si = 0;
+  const timer = setInterval(() => { pl.textContent = steps[Math.min(si++, steps.length-1)]; }, 800);
+
+  const fd = new FormData();
+  fd.append("warehouse", files.wh);
+  fd.append("label",     files.lbl);
+  fd.append("catering",  files.cat);
+  if (files.pre) fd.append("prework", files.pre);
+
+  try {
+    const res = await fetch("/inspect", { method:"POST", body:fd });
+    const data = await res.json();
+    clearInterval(timer);
+
+    if (data.error) {
+      eb.textContent = data.error; eb.style.display = "block";
+      showToast("오류가 발생했습니다.");
+    } else {
+      showResult(data);
+    }
+  } catch(e) {
+    clearInterval(timer);
+    eb.textContent = String(e); eb.style.display = "block";
+    showToast("네트워크 오류가 발생했습니다.");
+  }
+
+  btn.disabled = false;
+  pw.style.display = "none";
+}
+
+function showResult(r) {
+  // Step1
+  document.getElementById("r-s1m").textContent = r.s1_matched.toLocaleString() + "건";
+  document.getElementById("r-s1d").textContent = r.s1_diff.toLocaleString() + "건";
+  document.getElementById("r-s1w").textContent = r.s1_wh.toLocaleString() + "건";
+  document.getElementById("r-s1l").textContent = r.s1_lbl.toLocaleString() + "건";
+  const rate1 = parseFloat(r.s1_rate);
+  const rb1 = document.getElementById("r-s1rate");
+  rb1.textContent = `일치율 ${r.s1_rate}%`;
+  rb1.className = `rate-badge ${rate1>=95?"good":rate1>=80?"warn":"bad"}`;
+
+  // Step2
+  document.getElementById("r-s2m").textContent = r.s2_matched.toLocaleString() + "건";
+  document.getElementById("r-s2d").textContent = r.s2_diff.toLocaleString() + "건";
+  document.getElementById("r-s2l").textContent = r.s2_lbl.toLocaleString() + "건";
+  document.getElementById("r-s2c").textContent = r.s2_cat.toLocaleString() + "건";
+  document.getElementById("r-s2p").textContent = r.s2_pre.toLocaleString() + "건";
+  const rate2 = parseFloat(r.s2_rate);
+  const rb2 = document.getElementById("r-s2rate");
+  rb2.textContent = `일치율 ${r.s2_rate}%`;
+  rb2.className = `rate-badge ${rate2>=95?"good":rate2>=80?"warn":"bad"}`;
+
+  document.getElementById("btn-download").href = `/download/${r.file_id}`;
+  document.getElementById("result-section").style.display = "block";
+  document.getElementById("result-section").scrollIntoView({behavior:"smooth"});
+  showToast("검수 완료!");
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+</script>
+</body>
+</html>
