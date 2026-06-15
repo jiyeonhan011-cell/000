@@ -263,7 +263,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     A,B = "이동처리(F열)","라벨발행(I열)"
     C,D = "라벨발행(I열)","작업내역(K÷2)"
     def sumq(rows, col): return sum(r[col] for r in rows if isinstance(r.get(col), (int,float)))
-    all_s1 = s1m+s1d+s1w+s1l
+    all_s1 = s1m+s1d+s1w+s1l+s1box
     all_s2 = s2m+s2d+s2l+s2c+s2pre
 
     return buf, {
@@ -276,6 +276,12 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         "s2_rate":f"{len(s2m)/s2c_cnt*100:.1f}" if s2c_cnt else "0",
         "s2_lbl_qty": sumq(all_s2, C), "s2_cat_qty": sumq(all_s2, D),
         "canceled": canceled,
+        # 실제 데이터
+        "rows": {
+            "s1_diff": s1d, "s1_wh": s1w, "s1_lbl": s1l, "s1_box": s1box, "s1_matched": s1m,
+            "s2_diff": s2d, "s2_lbl": s2l, "s2_cat": s2c, "s2_pre": s2pre, "s2_matched": s2m,
+        },
+        "cols": {"A": A, "B": B, "C": C, "D": D},
     }
 
 
@@ -354,33 +360,89 @@ if run_btn:
 
                 buf, result = run_inspection(wh_path, lbl_path, cat_path, pre_path)
 
-            st.success("✅ 검수 완료!")
+            import pandas as pd
 
-            st.markdown("### STEP 1 결과: 이동처리 vs 라벨발행")
+            def to_df(rows, cols):
+                if not rows: return None
+                keys = ["코드","품목명","규격","단위"] + [c for c in cols if c in rows[0]] + ["차이"]
+                keys = [k for k in keys if k in rows[0]]
+                return pd.DataFrame([{k: r.get(k,"-") for k in keys} for r in rows])
+
+            st.success("✅ 검수 완료!")
+            rows = result["rows"]
+            A,B = result["cols"]["A"], result["cols"]["B"]
+            C,D = result["cols"]["C"], result["cols"]["D"]
+
+            # ── STEP 1 ──
+            st.markdown("### STEP 1: 이동처리 vs 라벨발행")
             c1,c2 = st.columns(2)
             c1.metric("이동처리 이동수량 합계", f"{result['s1_wh_qty']:,.0f}")
             c2.metric("라벨발행 출고수량 합계", f"{result['s1_lbl_qty']:,.0f}",
                       delta=f"{result['s1_lbl_qty']-result['s1_wh_qty']:+,.0f}")
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("✅ 일치 품목",       result["s1_matched"])
-            c2.metric("❌ 수량불일치 품목", result["s1_diff"])
-            c3.metric("✅ BOX/EA환산(정상)", result["s1_box"])
-            c4.metric("⚠️ 이동처리만",      result["s1_wh"])
-            c5.metric("⚠️ 라벨발행만",      result["s1_lbl"])
-            st.caption(f"일치율(공통기준): {result['s1_rate']}%  |  라벨발행 취소/변경 제외: {result['canceled']}건")
+            c1.metric("✅ 일치",          result["s1_matched"])
+            c2.metric("❌ 수량불일치",    result["s1_diff"])
+            c3.metric("✅ BOX/EA환산",    result["s1_box"])
+            c4.metric("⚠️ 이동처리만",   result["s1_wh"])
+            c5.metric("⚠️ 라벨발행만",   result["s1_lbl"])
+            st.caption(f"일치율: {result['s1_rate']}%  |  취소/변경 제외: {result['canceled']}건")
 
-            st.markdown("### STEP 2 결과: 라벨발행 vs 작업내역")
+            if rows["s1_diff"]:
+                with st.expander(f"❌ 수량불일치 품목 ({result['s1_diff']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s1_diff"], [A,B]), use_container_width=True, hide_index=True)
+            if rows["s1_wh"]:
+                with st.expander(f"⚠️ 이동처리에만 있는 품목 ({result['s1_wh']}건)"):
+                    st.dataframe(to_df(rows["s1_wh"], [A,B]), use_container_width=True, hide_index=True)
+            if rows["s1_lbl"]:
+                with st.expander(f"⚠️ 라벨발행에만 있는 품목 ({result['s1_lbl']}건)"):
+                    st.dataframe(to_df(rows["s1_lbl"], [A,B]), use_container_width=True, hide_index=True)
+            if rows["s1_box"]:
+                with st.expander(f"✅ BOX/EA환산(정상) ({result['s1_box']}건)"):
+                    st.dataframe(to_df(rows["s1_box"], [A,B]), use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            # ── STEP 2 ──
+            st.markdown("### STEP 2: 라벨발행 vs 작업내역")
             c1,c2 = st.columns(2)
             c1.metric("라벨발행 출고수량 합계", f"{result['s2_lbl_qty']:,.0f}")
             c2.metric("작업내역 수량 합계(÷2)", f"{result['s2_cat_qty']:,.0f}",
                       delta=f"{result['s2_cat_qty']-result['s2_lbl_qty']:+,.0f}")
             c1,c2,c3,c4,c5 = st.columns(5)
-            c1.metric("✅ 일치 품목",       result["s2_matched"])
-            c2.metric("❌ 수량불일치 품목", result["s2_diff"])
+            c1.metric("✅ 일치",        result["s2_matched"])
+            c2.metric("❌ 수량불일치",  result["s2_diff"])
             c3.metric("⚠️ 라벨발행만", result["s2_lbl"])
             c4.metric("⚠️ 작업내역만", result["s2_cat"])
-            c5.metric("✅ 선작업(정상)", result["s2_pre"])
-            st.caption(f"일치율(공통기준): {result['s2_rate']}%")
+            c5.metric("✅ 선작업",      result["s2_pre"])
+            st.caption(f"일치율: {result['s2_rate']}%")
+
+            if rows["s2_diff"]:
+                with st.expander(f"❌ 수량불일치 품목 ({result['s2_diff']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s2_diff"], [C,D]), use_container_width=True, hide_index=True)
+            if rows["s2_lbl"]:
+                with st.expander(f"⚠️ 라벨발행에만 있는 품목 ({result['s2_lbl']}건)"):
+                    st.dataframe(to_df(rows["s2_lbl"], [C,D]), use_container_width=True, hide_index=True)
+            if rows["s2_cat"]:
+                with st.expander(f"⚠️ 작업내역에만 있는 품목 ({result['s2_cat']}건)"):
+                    st.dataframe(to_df(rows["s2_cat"], [C,D]), use_container_width=True, hide_index=True)
+            if rows["s2_pre"]:
+                with st.expander(f"✅ 선작업(정상) ({result['s2_pre']}건)"):
+                    st.dataframe(to_df(rows["s2_pre"], [C,D]), use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            # ── 최종 요약 ──
+            total_normal = result["s1_matched"] + result["s1_diff"] + result["s1_box"] + result["s2_pre"]
+            total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
+            qty_diff_val = result["s1_lbl_qty"] - result["s1_wh_qty"]
+
+            st.markdown("### 📋 최종 결과 요약")
+            c1,c2,c3 = st.columns(3)
+            c1.metric("✅ 정상 품목 수", total_normal,
+                      help="일치 + 수량불일치 + BOX/EA환산 + 선작업")
+            c2.metric("🚨 확인 필요 품목 수", total_issue,
+                      help="이동처리만/라벨발행만/작업내역만/2단계 수량불일치")
+            c3.metric("라벨발행 - 이동수량 차이", f"{qty_diff_val:+,.0f}")
 
             st.download_button(
                 label="📥 결과 엑셀 다운로드",
