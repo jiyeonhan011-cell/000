@@ -54,6 +54,13 @@ def load_warehouse(path):
         info_map[erp]["이동날짜"] = ", ".join(sorted(dates_map[erp]))
     return qty_map, info_map
 
+def ea_factor(단위, 규격):
+    """BOX/PK 등 EA 아닌 단위는 규격에서 환산 비율 추출. 예: '340g*12ea' → 12"""
+    if 단위.upper() == 'EA':
+        return 1
+    m = re.search(r'\*\s*(\d+)\s*ea', 규격, re.IGNORECASE)
+    return int(m.group(1)) if m else 1
+
 def load_label(path):
     wb = openpyxl.load_workbook(path)
     ws = wb.active
@@ -69,12 +76,14 @@ def load_label(path):
         규격     = str(ws.cell(i,11).value or '').strip()
         급코드   = clean_code(ws.cell(i,12).value)
         erp코드  = str(ws.cell(i,13).value or '').strip()
-        s1_qty[erp코드] += 출고수량
+        # EA 환산 적용
+        출고수량_ea = 출고수량 * ea_factor(단위, 규격)
+        s1_qty[erp코드] += 출고수량_ea
         if erp코드 not in s1_info:
-            s1_info[erp코드] = {"ERP코드":erp코드,"급품목코드":급코드,"제품명":제품명,"규격":규격,"단위":단위}
-        s2_qty[급코드] += 출고수량
+            s1_info[erp코드] = {"ERP코드":erp코드,"급품목코드":급코드,"제품명":제품명,"규격":규격,"단위":"EA(환산)"}
+        s2_qty[급코드] += 출고수량_ea
         if 급코드 not in s2_info:
-            s2_info[급코드] = {"급품목코드":급코드,"ERP코드":erp코드,"제품명":제품명,"규격":규격,"단위":단위}
+            s2_info[급코드] = {"급품목코드":급코드,"ERP코드":erp코드,"제품명":제품명,"규격":규격,"단위":"EA(환산)"}
     return s1_qty, s1_info, s2_qty, s2_info, canceled
 
 def load_catering(path):
