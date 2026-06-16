@@ -216,6 +216,13 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     else:
         s2pre,s2m,s2d,s2l,s2c = [],s2m_all,s2d_all,s2l_all,s2c_all
 
+    # BOX-EA 환산 품목을 2단계 수량불일치에서도 분리
+    if box_ea_codes:
+        s2box = [r for r in s2d if r["코드"] in box_ea_codes]
+        s2d   = [r for r in s2d if r["코드"] not in box_ea_codes]
+    else:
+        s2box = []
+
     wb = openpyxl.Workbook()
     ws_sum = wb.active; ws_sum.title = "검수요약"
     ws_sum.column_dimensions["A"].width=46; ws_sum.column_dimensions["B"].width=16
@@ -231,8 +238,9 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         ("  일치율(공통기준)", f"{len(s1m)/s1c*100:.1f}%" if s1c else "-"),
         ("",""),
         ("── STEP 2: 라벨발행(L열) vs 작업내역(G열) ──",""),
-        ("  전체 항목 (급품목코드 기준)", len(s2m)+len(s2d)+len(s2l)+len(s2c)+len(s2pre)),
+        ("  전체 항목 (급품목코드 기준)", len(s2m)+len(s2d)+len(s2l)+len(s2c)+len(s2pre)+len(s2box)),
         ("  ✅ 일치", len(s2m)),("  ❌ 수량 불일치", len(s2d)),
+        ("  ✅ BOX/EA환산(정상)", len(s2box)),
         ("  ⚠️ 라벨발행에만", len(s2l)),("  ⚠️ 작업내역에만", len(s2c)),
         ("  ✅ 선작업(정상)", len(s2pre)),
         ("  일치율(공통기준)", f"{len(s2m)/s2c_cnt*100:.1f}%" if s2c_cnt else "-"),
@@ -257,6 +265,8 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     if s2pre:
         write_xl_sheet(wb,"2단계_선작업(정상)",s2pre,"4472C4","DAE8FC",C,D,show_date=False,
                        extra_cols=[("급식사","급식사"),("선작업qty","선작업qty"),("보정후","보정후"),("보정후차이","보정후차이")])
+    if s2box:
+        write_xl_sheet(wb,"2단계_BOX_EA환산(정상)",s2box,"4472C4","DAE8FC",C,D,show_date=False)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -266,7 +276,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     C,D = "라벨발행(I열)","작업내역(K÷2)"
     def sumq(rows, col): return sum(r[col] for r in rows if isinstance(r.get(col), (int,float)))
     all_s1 = s1m+s1d+s1w+s1l+s1box
-    all_s2 = s2m+s2d+s2l+s2c+s2pre
+    all_s2 = s2m+s2d+s2l+s2c+s2pre+s2box
 
     return buf, {
         "s1_matched":len(s1m),"s1_diff":len(s1d),"s1_wh":len(s1w),"s1_lbl":len(s1l),
@@ -274,7 +284,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         "s1_rate":f"{len(s1m)/s1c*100:.1f}" if s1c else "0",
         "s1_wh_qty": sumq(all_s1, A), "s1_lbl_qty": sumq(all_s1, B),
         "s2_matched":len(s2m),"s2_diff":len(s2d),"s2_lbl":len(s2l),"s2_cat":len(s2c),
-        "s2_pre":len(s2pre),
+        "s2_pre":len(s2pre), "s2_box":len(s2box),
         "s2_rate":f"{len(s2m)/s2c_cnt*100:.1f}" if s2c_cnt else "0",
         "s2_lbl_qty": sumq(all_s2, C), "s2_cat_qty": sumq(all_s2, D),
         "canceled": canceled,
@@ -282,6 +292,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         "rows": {
             "s1_diff": s1d, "s1_wh": s1w, "s1_lbl": s1l, "s1_box": s1box, "s1_matched": s1m,
             "s2_diff": s2d, "s2_lbl": s2l, "s2_cat": s2c, "s2_pre": s2pre, "s2_matched": s2m,
+            "s2_box": s2box,
         },
         "cols": {"A": A, "B": B, "C": C, "D": D},
     }
@@ -411,12 +422,13 @@ if run_btn:
             c1.metric("라벨발행 출고수량 합계", f"{result['s2_lbl_qty']:,.0f}")
             c2.metric("작업내역 수량 합계(÷2)", f"{result['s2_cat_qty']:,.0f}",
                       delta=f"{result['s2_cat_qty']-result['s2_lbl_qty']:+,.0f}")
-            c1,c2,c3,c4,c5 = st.columns(5)
+            c1,c2,c3,c4,c5,c6 = st.columns(6)
             c1.metric("✅ 일치",        result["s2_matched"])
             c2.metric("❌ 수량불일치",  result["s2_diff"])
-            c3.metric("⚠️ 라벨발행만", result["s2_lbl"])
-            c4.metric("⚠️ 작업내역만", result["s2_cat"])
-            c5.metric("✅ 선작업",      result["s2_pre"])
+            c3.metric("✅ BOX/EA환산",  result["s2_box"])
+            c4.metric("⚠️ 라벨발행만", result["s2_lbl"])
+            c5.metric("⚠️ 작업내역만", result["s2_cat"])
+            c6.metric("✅ 선작업",      result["s2_pre"])
             st.caption(f"일치율: {result['s2_rate']}%")
 
             if rows["s2_diff"]:
@@ -433,11 +445,14 @@ if run_btn:
                     st.caption("보정후차이 = 라벨발행(I열) - 보정후 (0이면 선작업 반영 시 정상)")
                     st.dataframe(to_df(rows["s2_pre"], [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
                                  use_container_width=True, hide_index=True)
+            if rows["s2_box"]:
+                with st.expander(f"✅ BOX/EA환산(정상) ({result['s2_box']}건)"):
+                    st.dataframe(to_df(rows["s2_box"], [C,D]), use_container_width=True, hide_index=True)
 
             st.divider()
 
             # ── 최종 요약 ──
-            total_normal = result["s1_matched"] + result["s1_diff"] + result["s1_box"] + result["s2_pre"]
+            total_normal = result["s1_matched"] + result["s1_diff"] + result["s1_box"] + result["s2_pre"] + result["s2_box"]
             total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
             qty_diff_val = result["s1_lbl_qty"] - result["s1_wh_qty"]
 
