@@ -135,7 +135,7 @@ def compare(a_qty, a_info, b_qty, b_info, col_a, col_b):
         else: b_only.append(row)
     return matched, qty_diff, a_only, b_only
 
-def split_prework(matched, qty_diff, lbl_only, cat_only, prework_codes):
+def split_prework(matched, qty_diff, lbl_only, cat_only, prework_codes, lbl_col):
     def _split(rows):
         pre, normal = [], []
         for row in rows:
@@ -144,6 +144,8 @@ def split_prework(matched, qty_diff, lbl_only, cat_only, prework_codes):
                 r["선작업qty"] = prework_codes[row["코드"]]["선작업qty"]
                 r["보정후"]    = prework_codes[row["코드"]]["보정후"]
                 r["급식사"]    = prework_codes[row["코드"]]["급식사"]
+                lbl_qty = row.get(lbl_col) or 0
+                r["보정후차이"] = lbl_qty - r["보정후"]
                 pre.append(r)
             else: normal.append(row)
         return pre, normal
@@ -182,9 +184,9 @@ def write_xl_sheet(wb, title, rows, hdr_bg, row_bg, col_a, col_b, show_date=True
         for c,key in enumerate(base_k,1):
             val = item.get(key); val = "-" if val is None else val
             cell = ws.cell(r,c,val)
-            center = key in ("코드","단위",col_a,col_b,"차이","이동날짜","선작업qty","보정후")
+            center = key in ("코드","단위",col_a,col_b,"차이","이동날짜","선작업qty","보정후","보정후차이")
             cell_bg = bg
-            if key=="차이" and isinstance(val,(int,float)) and abs(val)>0.001: cell_bg="FFD7D7"
+            if key in ("차이","보정후차이") and isinstance(val,(int,float)) and abs(val)>0.001: cell_bg="FFD7D7"
             dat_style(cell, center=center, bg=cell_bg)
     for c,w in enumerate(w_base,1):
         ws.column_dimensions[get_column_letter(c)].width = w
@@ -210,7 +212,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
     if prework:
-        s2pre,s2m,s2d,s2l,s2c = split_prework(s2m_all,s2d_all,s2l_all,s2c_all,prework)
+        s2pre,s2m,s2d,s2l,s2c = split_prework(s2m_all,s2d_all,s2l_all,s2c_all,prework,"라벨발행(I열)")
     else:
         s2pre,s2m,s2d,s2l,s2c = [],s2m_all,s2d_all,s2l_all,s2c_all
 
@@ -254,7 +256,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     write_xl_sheet(wb,"2단계_일치",      s2m,"375623","E2EFDA",C,D,show_date=False)
     if s2pre:
         write_xl_sheet(wb,"2단계_선작업(정상)",s2pre,"4472C4","DAE8FC",C,D,show_date=False,
-                       extra_cols=[("선작업qty","선작업qty"),("보정후","보정후"),("급식사","급식사")])
+                       extra_cols=[("급식사","급식사"),("선작업qty","선작업qty"),("보정후","보정후"),("보정후차이","보정후차이")])
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -362,9 +364,10 @@ if run_btn:
 
             import pandas as pd
 
-            def to_df(rows, cols):
+            def to_df(rows, cols, extra=None):
                 if not rows: return None
                 keys = ["코드","품목명","규격","단위"] + [c for c in cols if c in rows[0]] + ["차이"]
+                if extra: keys += [k for k in extra if k in rows[0]]
                 keys = [k for k in keys if k in rows[0]]
                 return pd.DataFrame([{k: r.get(k,"-") for k in keys} for r in rows])
 
@@ -427,7 +430,9 @@ if run_btn:
                     st.dataframe(to_df(rows["s2_cat"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_pre"]:
                 with st.expander(f"✅ 선작업(정상) ({result['s2_pre']}건)"):
-                    st.dataframe(to_df(rows["s2_pre"], [C,D]), use_container_width=True, hide_index=True)
+                    st.caption("보정후차이 = 라벨발행(I열) - 보정후 (0이면 선작업 반영 시 정상)")
+                    st.dataframe(to_df(rows["s2_pre"], [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
+                                 use_container_width=True, hide_index=True)
 
             st.divider()
 
