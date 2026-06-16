@@ -457,6 +457,10 @@ if run_btn:
             qty_diff_val = result["s1_lbl_qty"] - result["s1_wh_qty"]
 
             st.markdown("### 📋 최종 결과 요약")
+            if total_issue == 0:
+                st.success("✅ 정상 — STEP 1, STEP 2 모두 확인이 필요한 항목이 없습니다.")
+            else:
+                st.error(f"🚨 확인 필요 — STEP 1, STEP 2 합계 {total_issue}건의 항목을 확인해야 합니다.")
             c1,c2,c3 = st.columns(3)
             c1.metric("✅ 정상 품목 수", total_normal,
                       help="일치 + 수량불일치 + BOX/EA환산 + 선작업")
