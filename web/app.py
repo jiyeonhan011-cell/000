@@ -153,6 +153,53 @@ def split_prework(matched, qty_diff, lbl_only, cat_only, prework_codes, lbl_col)
     pl,l = _split(lbl_only); pc,c = _split(cat_only)
     return pm+pd+pl+pc, m, d, l, c
 
+def normalize_name(name):
+    n = re.sub(r'\(.*?\)', '', str(name or ''))
+    return re.sub(r'\s+', '', n).strip()
+
+def match_by_name(lbl_only, cat_only, col_a, col_b):
+    l_by_name, c_by_name = defaultdict(list), defaultdict(list)
+    for r in lbl_only: l_by_name[normalize_name(r["품목명"])].append(r)
+    for r in cat_only: c_by_name[normalize_name(r["품목명"])].append(r)
+    matched_names = set(l_by_name) & {n for n in c_by_name if n}
+    matched_names.discard("")
+
+    combined = []
+    for name in sorted(matched_names):
+        for lr in l_by_name[name]:
+            for cr in c_by_name[name]:
+                lq, cq = lr.get(col_a) or 0, cr.get(col_b) or 0
+                combined.append({
+                    "품목명": lr["품목명"],
+                    "라벨발행코드": lr["코드"], col_a: lq,
+                    "작업내역코드": cr["코드"], col_b: cq,
+                    "차이": cq - lq,
+                    "규격": lr.get("규격") or cr.get("규격",""),
+                    "단위": lr.get("단위") or cr.get("단위",""),
+                })
+
+    new_lbl_only = [r for n,rows in l_by_name.items() if n not in matched_names for r in rows]
+    new_cat_only = [r for n,rows in c_by_name.items() if n not in matched_names for r in rows]
+    return combined, new_lbl_only, new_cat_only
+
+def write_namematch_sheet(wb, title, rows, col_a, col_b):
+    ws = wb.create_sheet(title)
+    headers = ["품목명","규격","단위","라벨발행코드",col_a,"작업내역코드",col_b,"차이"]
+    for c,h in enumerate(headers,1): hdr_style(ws.cell(1,c,h), "4472C4")
+    for r,item in enumerate(rows,2):
+        bg = "DAE8FC" if r%2==0 else None
+        for c,key in enumerate(headers,1):
+            val = item.get(key); val = "-" if val is None else val
+            cell = ws.cell(r,c,val)
+            center = key in ("단위","라벨발행코드","작업내역코드",col_a,col_b,"차이")
+            cell_bg = bg
+            if key=="차이" and isinstance(val,(int,float)) and abs(val)>0.001: cell_bg="FFD7D7"
+            dat_style(cell, center=center, bg=cell_bg)
+    widths = [38,18,7,16,16,16,16,10]
+    for c,w in enumerate(widths,1): ws.column_dimensions[get_column_letter(c)].width = w
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
 def hdr_style(cell, bg="1F4E79"):
     cell.font  = XFont(color="FFFFFF", bold=True, size=10)
     cell.fill  = PatternFill("solid", fgColor=bg)
@@ -216,6 +263,9 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     else:
         s2pre,s2m,s2d,s2l,s2c = [],s2m_all,s2d_all,s2l_all,s2c_all
 
+    # 코드는 다르지만 품목명이 같은 항목(거래처별 코드 차이로 인한 가짜 불일치) 분리
+    s2name, s2l, s2c = match_by_name(s2l, s2c, "라벨발행(I열)", "작업내역(K÷2)")
+
     wb = openpyxl.Workbook()
     ws_sum = wb.active; ws_sum.title = "검수요약"
     ws_sum.column_dimensions["A"].width=46; ws_sum.column_dimensions["B"].width=16
@@ -231,10 +281,11 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         ("  일치율(공통기준)", f"{len(s1m)/s1c*100:.1f}%" if s1c else "-"),
         ("",""),
         ("── STEP 2: 라벨발행(L열) vs 작업내역(G열) ──",""),
-        ("  전체 항목 (급품목코드 기준)", len(s2m)+len(s2d)+len(s2l)+len(s2c)+len(s2pre)),
+        ("  전체 항목 (급품목코드 기준)", len(s2m)+len(s2d)+len(s2l)+len(s2c)+len(s2pre)+len(s2name)),
         ("  ✅ 일치", len(s2m)),("  ❌ 수량 불일치", len(s2d)),
         ("  ⚠️ 라벨발행에만", len(s2l)),("  ⚠️ 작업내역에만", len(s2c)),
         ("  ✅ 선작업(정상)", len(s2pre)),
+        ("  ⚠️ 코드다름/이름일치(확인필요)", len(s2name)),
         ("  일치율(공통기준)", f"{len(s2m)/s2c_cnt*100:.1f}%" if s2c_cnt else "-"),
     ]
     for r,(label,val) in enumerate(summary_rows,2):
@@ -257,6 +308,8 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     if s2pre:
         write_xl_sheet(wb,"2단계_선작업(정상)",s2pre,"4472C4","DAE8FC",C,D,show_date=False,
                        extra_cols=[("급식사","급식사"),("선작업qty","선작업qty"),("보정후","보정후"),("보정후차이","보정후차이")])
+    if s2name:
+        write_namematch_sheet(wb,"2단계_코드다름_이름일치",s2name,C,D)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -274,7 +327,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         "s1_rate":f"{len(s1m)/s1c*100:.1f}" if s1c else "0",
         "s1_wh_qty": sumq(all_s1, A), "s1_lbl_qty": sumq(all_s1, B),
         "s2_matched":len(s2m),"s2_diff":len(s2d),"s2_lbl":len(s2l),"s2_cat":len(s2c),
-        "s2_pre":len(s2pre),
+        "s2_pre":len(s2pre), "s2_name":len(s2name),
         "s2_rate":f"{len(s2m)/s2c_cnt*100:.1f}" if s2c_cnt else "0",
         "s2_lbl_qty": sumq(all_s2, C), "s2_cat_qty": sumq(all_s2, D),
         "canceled": canceled,
@@ -282,6 +335,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
         "rows": {
             "s1_diff": s1d, "s1_wh": s1w, "s1_lbl": s1l, "s1_box": s1box, "s1_matched": s1m,
             "s2_diff": s2d, "s2_lbl": s2l, "s2_cat": s2c, "s2_pre": s2pre, "s2_matched": s2m,
+            "s2_name": s2name,
         },
         "cols": {"A": A, "B": B, "C": C, "D": D},
     }
@@ -411,12 +465,13 @@ if run_btn:
             c1.metric("라벨발행 출고수량 합계", f"{result['s2_lbl_qty']:,.0f}")
             c2.metric("작업내역 수량 합계(÷2)", f"{result['s2_cat_qty']:,.0f}",
                       delta=f"{result['s2_cat_qty']-result['s2_lbl_qty']:+,.0f}")
-            c1,c2,c3,c4,c5 = st.columns(5)
+            c1,c2,c3,c4,c5,c6 = st.columns(6)
             c1.metric("✅ 일치",        result["s2_matched"])
             c2.metric("❌ 수량불일치",  result["s2_diff"])
             c3.metric("⚠️ 라벨발행만", result["s2_lbl"])
             c4.metric("⚠️ 작업내역만", result["s2_cat"])
             c5.metric("✅ 선작업",      result["s2_pre"])
+            c6.metric("⚠️ 코드다름/이름일치", result["s2_name"])
             st.caption(f"일치율: {result['s2_rate']}%")
 
             if rows["s2_diff"]:
@@ -433,12 +488,19 @@ if run_btn:
                     st.caption("보정후차이 = 라벨발행(I열) - 보정후 (0이면 선작업 반영 시 정상)")
                     st.dataframe(to_df(rows["s2_pre"], [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
                                  use_container_width=True, hide_index=True)
+            if rows["s2_name"]:
+                with st.expander(f"⚠️ 코드다름/이름일치 - 확인 필요 ({result['s2_name']}건)"):
+                    st.caption("같은 품목명인데 라벨발행과 작업내역에서 코드가 달라 1:1 매칭이 안 된 항목입니다. "
+                               "거래처별로 다른 코드를 쓰는 경우일 수 있으니 수동 확인이 필요합니다.")
+                    name_keys = ["품목명","규격","단위","라벨발행코드",C,"작업내역코드",D,"차이"]
+                    name_df = pd.DataFrame([{k: r.get(k,"-") for k in name_keys} for r in rows["s2_name"]])
+                    st.dataframe(name_df, use_container_width=True, hide_index=True)
 
             st.divider()
 
             # ── 최종 요약 ──
             total_normal = result["s1_matched"] + result["s1_diff"] + result["s1_box"] + result["s2_pre"]
-            total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
+            total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"] + result["s2_name"]
             qty_diff_val = result["s1_lbl_qty"] - result["s1_wh_qty"]
 
             st.markdown("### 📋 최종 결과 요약")
