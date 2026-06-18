@@ -97,8 +97,8 @@ def load_catering(path):
         code = clean_code(ws.cell(i,7).value)
         qty  = float(ws.cell(i,11).value or 0)
         단위  = str(ws.cell(i,10).value or '').strip()
-        # BOX→EA 환산 적용
-        if 단위.upper() == 'BOX' and code in BOX_TO_EA:
+        # BOX→EA 환산 적용 (단위 값과 무관하게 코드 기준으로 적용)
+        if code in BOX_TO_EA:
             qty  = qty * BOX_TO_EA[code]
             단위 = 'EA'
         qty_map[code] += qty
