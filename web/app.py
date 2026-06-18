@@ -78,11 +78,6 @@ def load_label(path):
         규격     = str(ws.cell(i,11).value or '').strip()
         급코드   = clean_code(ws.cell(i,12).value)
         erp코드  = str(ws.cell(i,13).value or '').strip()
-        # BOX→EA 환산 적용 (급품목코드 또는 ERP코드 기준, 단위 무관)
-        _conv_key = 급코드 if 급코드 in BOX_TO_EA else (erp코드 if erp코드 in BOX_TO_EA else None)
-        if _conv_key:
-            출고수량 = 출고수량 * BOX_TO_EA[_conv_key]
-            단위 = 'EA'
         s1_qty[erp코드] += 출고수량
         if erp코드 not in s1_info:
             s1_info[erp코드] = {"ERP코드":erp코드,"급품목코드":급코드,"제품명":제품명,"규격":규격,"단위":단위}
@@ -101,10 +96,6 @@ def load_catering(path):
         code = clean_code(ws.cell(i,7).value)
         qty  = float(ws.cell(i,11).value or 0)
         단위  = str(ws.cell(i,10).value or '').strip()
-        # BOX→EA 환산 적용 (단위 값과 무관하게 코드 기준으로 적용)
-        if code in BOX_TO_EA:
-            qty  = qty * BOX_TO_EA[code]
-            단위 = 'EA'
         qty_map[code] += qty
         if code not in info_map:
             info_map[code] = {
@@ -213,6 +204,14 @@ def write_xl_sheet(wb, title, rows, hdr_bg, row_bg, col_a, col_b, show_date=True
     ws.auto_filter.ref = f"A1:{get_column_letter(len(base_h))}1"
 
 
+def _apply_box_to_ea(qty_map):
+    """비교용 복사본에만 BOX→EA 환산 적용. 원본은 건드리지 않음."""
+    result = dict(qty_map)
+    for code, factor in BOX_TO_EA.items():
+        if code in result:
+            result[code] = result[code] * factor
+    return result
+
 def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     wh_qty, wh_info = load_warehouse(wh_path)
     ls1q,ls1i,ls2q,ls2i,canceled = load_label(lbl_path)
@@ -222,13 +221,18 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     def is_box_ea(row):
         return row["코드"] in box_ea_codes or "혼용코드" in str(row.get("품목명",""))
 
-    s1m,s1d,s1w,s1l = compare(wh_qty,wh_info,ls1q,ls1i,"이동처리(F열)","라벨발행(I열)")
+    # 비교에만 환산 적용 (합계 표시는 원본값 사용)
+    ls1q_cmp = _apply_box_to_ea(ls1q)
+    ls2q_cmp = _apply_box_to_ea(ls2q)
+    cat_qty_cmp = _apply_box_to_ea(cat_qty)
+
+    s1m,s1d,s1w,s1l = compare(wh_qty,wh_info,ls1q_cmp,ls1i,"이동처리(F열)","라벨발행(I열)")
 
     # BOX-EA 환산 품목을 수량불일치에서 분리 (파일 코드 + 품목명 혼용코드 자동감지)
     s1box = [r for r in s1d if is_box_ea(r)]
     s1d   = [r for r in s1d if not is_box_ea(r)]
 
-    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
+    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q_cmp,ls2i,cat_qty_cmp,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
     if prework:
         s2pre,s2m,s2d,s2l,s2c = split_prework(s2m_all,s2d_all,s2l_all,s2c_all,prework,"라벨발행(I열)")
