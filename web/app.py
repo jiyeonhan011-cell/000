@@ -408,7 +408,11 @@ if run_btn:
                 with st.expander(f"⚠️ 라벨발행에만 있는 품목 ({result['s1_lbl']}건)"):
                     st.dataframe(to_df(rows["s1_lbl"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_box"]:
-                with st.expander(f"✅ BOX/EA환산(정상) ({result['s1_box']}건)"):
+                s1box_err = [r for r in rows["s1_box"] if abs(r.get("차이") or 0) > 0.001]
+                with st.expander(f"✅ BOX/EA환산 ({result['s1_box']}건) {'⚠️ 수량 확인 필요 ' + str(len(s1box_err)) + '건' if s1box_err else ''}",
+                                 expanded=bool(s1box_err)):
+                    if s1box_err:
+                        st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
                     st.dataframe(to_df(rows["s1_box"], [A,B]), use_container_width=True, hide_index=True)
 
             st.divider()
@@ -443,7 +447,11 @@ if run_btn:
                     st.dataframe(to_df(rows["s2_pre"], [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
                                  use_container_width=True, hide_index=True)
             if rows["s2_box"]:
-                with st.expander(f"✅ BOX/EA환산(정상) ({result['s2_box']}건)"):
+                s2box_err = [r for r in rows["s2_box"] if abs(r.get("차이") or 0) > 0.001]
+                with st.expander(f"✅ BOX/EA환산 ({result['s2_box']}건) {'⚠️ 수량 확인 필요 ' + str(len(s2box_err)) + '건' if s2box_err else ''}",
+                                 expanded=bool(s2box_err)):
+                    if s2box_err:
+                        st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
                     st.dataframe(to_df(rows["s2_box"], [C,D]), use_container_width=True, hide_index=True)
 
             st.divider()
