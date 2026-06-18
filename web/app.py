@@ -200,14 +200,14 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     cat_qty, cat_info = load_catering(cat_path)
     prework, box_ea_codes = load_prework(pre_path) if pre_path else ({}, set())
 
+    def is_box_ea(row):
+        return row["코드"] in box_ea_codes or "혼용코드" in str(row.get("품목명",""))
+
     s1m,s1d,s1w,s1l = compare(wh_qty,wh_info,ls1q,ls1i,"이동처리(F열)","라벨발행(I열)")
 
-    # BOX-EA 환산 품목을 수량불일치에서 분리
-    if box_ea_codes:
-        s1box = [r for r in s1d if r["코드"] in box_ea_codes]
-        s1d   = [r for r in s1d if r["코드"] not in box_ea_codes]
-    else:
-        s1box = []
+    # BOX-EA 환산 품목을 수량불일치에서 분리 (파일 코드 + 품목명 혼용코드 자동감지)
+    s1box = [r for r in s1d if is_box_ea(r)]
+    s1d   = [r for r in s1d if not is_box_ea(r)]
 
     s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
@@ -216,12 +216,9 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     else:
         s2pre,s2m,s2d,s2l,s2c = [],s2m_all,s2d_all,s2l_all,s2c_all
 
-    # BOX-EA 환산 품목을 2단계 수량불일치에서도 분리
-    if box_ea_codes:
-        s2box = [r for r in s2d if r["코드"] in box_ea_codes]
-        s2d   = [r for r in s2d if r["코드"] not in box_ea_codes]
-    else:
-        s2box = []
+    # BOX-EA 환산 품목을 2단계 수량불일치에서도 분리 (파일 코드 + 품목명 혼용코드 자동감지)
+    s2box = [r for r in s2d if is_box_ea(r)]
+    s2d   = [r for r in s2d if not is_box_ea(r)]
 
     wb = openpyxl.Workbook()
     ws_sum = wb.active; ws_sum.title = "검수요약"
