@@ -30,6 +30,12 @@ BORDER_STYLE = Border(
 def clean_code(v):
     return re.sub(u'[​‌‍﻿ ]', '', str(v or '')).strip()
 
+
+# 급품목코드별 BOX→EA 환산 배수 (라벨발행이 BOX 단위, 이동처리가 EA 단위인 품목)
+BOX_TO_EA = {
+    "NA603095": 168,   # 새찬 오이피클 일회용/중국산 80g  (1BOX = 168EA)
+}
+
 def load_warehouse(path):
     wb  = xlrd.open_workbook(path)
     ws  = wb.sheet_by_index(0)
@@ -69,6 +75,10 @@ def load_label(path):
         규격     = str(ws.cell(i,11).value or '').strip()
         급코드   = clean_code(ws.cell(i,12).value)
         erp코드  = str(ws.cell(i,13).value or '').strip()
+        # BOX→EA 환산 적용 (단위가 BOX이고 환산 배수가 등록된 품목)
+        if 단위.upper() == 'BOX' and 급코드 in BOX_TO_EA:
+            출고수량 = 출고수량 * BOX_TO_EA[급코드]
+            단위 = 'EA'
         s1_qty[erp코드] += 출고수량
         if erp코드 not in s1_info:
             s1_info[erp코드] = {"ERP코드":erp코드,"급품목코드":급코드,"제품명":제품명,"규격":규격,"단위":단위}
