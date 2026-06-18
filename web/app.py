@@ -75,9 +75,10 @@ def load_label(path):
         규격     = str(ws.cell(i,11).value or '').strip()
         급코드   = clean_code(ws.cell(i,12).value)
         erp코드  = str(ws.cell(i,13).value or '').strip()
-        # BOX→EA 환산 적용 (단위가 BOX이고 환산 배수가 등록된 품목)
-        if 단위.upper() == 'BOX' and 급코드 in BOX_TO_EA:
-            출고수량 = 출고수량 * BOX_TO_EA[급코드]
+        # BOX→EA 환산 적용 (급품목코드 또는 ERP코드 기준, 단위 무관)
+        _conv_key = 급코드 if 급코드 in BOX_TO_EA else (erp코드 if erp코드 in BOX_TO_EA else None)
+        if _conv_key:
+            출고수량 = 출고수량 * BOX_TO_EA[_conv_key]
             단위 = 'EA'
         s1_qty[erp코드] += 출고수량
         if erp코드 not in s1_info:
