@@ -32,22 +32,6 @@ def clean_code(v):
 
 
 
-# 급품목코드별 BOX→EA 환산 배수 (라벨발행/작업내역이 BOX, 이동처리가 EA인 품목)
-BOX_TO_EA = {
-    "NA603095":    168,   # 새찬 오이피클 일회용/중국산 80g (라벨발행 급품목코드)
-    "1000464464":  168,   # 새찬 오이피클 일회용/중국산 80g (작업내역 코드)
-    "153325":      168,   # 새찬 오이피클 일회용/중국산 80g (작업내역 코드)
-    "482644":      168,   # 새찬 오이피클 일회용/중국산 80g (작업내역 코드)
-}
-
-def _conv(qty_map):
-    """비교 판단용 복사본에만 환산 적용. 원본 합계 표시에는 영향 없음."""
-    r = dict(qty_map)
-    for code, factor in BOX_TO_EA.items():
-        if code in r:
-            r[code] = r[code] * factor
-    return r
-
 def load_warehouse(path):
     wb  = xlrd.open_workbook(path)
     ws  = wb.sheet_by_index(0)
@@ -222,14 +206,13 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     def is_box_ea(row):
         return row["코드"] in box_ea_codes or "혼용코드" in str(row.get("품목명",""))
 
-    # 비교 판단은 환산값으로, 합계 표시는 원본값으로
-    s1m,s1d,s1w,s1l = compare(wh_qty,wh_info,_conv(ls1q),ls1i,"이동처리(F열)","라벨발행(I열)")
+    s1m,s1d,s1w,s1l = compare(wh_qty,wh_info,ls1q,ls1i,"이동처리(F열)","라벨발행(I열)")
 
     # BOX-EA 환산 품목을 수량불일치에서 분리 (파일 코드 + 품목명 혼용코드 자동감지)
     s1box = [r for r in s1d if is_box_ea(r)]
     s1d   = [r for r in s1d if not is_box_ea(r)]
 
-    s2m_all,s2d_all,s2l_all,s2c_all = compare(_conv(ls2q),ls2i,_conv(cat_qty),cat_info,"라벨발행(I열)","작업내역(K÷2)")
+    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
     if prework:
         s2pre,s2m,s2d,s2l,s2c = split_prework(s2m_all,s2d_all,s2l_all,s2c_all,prework,"라벨발행(I열)")
