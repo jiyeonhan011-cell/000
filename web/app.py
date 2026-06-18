@@ -96,12 +96,17 @@ def load_catering(path):
         if not d or str(d)=='센터명': continue
         code = clean_code(ws.cell(i,7).value)
         qty  = float(ws.cell(i,11).value or 0)
+        단위  = str(ws.cell(i,10).value or '').strip()
+        # BOX→EA 환산 적용
+        if 단위.upper() == 'BOX' and code in BOX_TO_EA:
+            qty  = qty * BOX_TO_EA[code]
+            단위 = 'EA'
         qty_map[code] += qty
         if code not in info_map:
             info_map[code] = {
                 "제품코드":code,"제품명":str(ws.cell(i,8).value or '').strip(),
                 "규격":str(ws.cell(i,9).value or '').strip(),
-                "단위":str(ws.cell(i,10).value or '').strip(),
+                "단위":단위,
             }
     return {k:v/2 for k,v in qty_map.items()}, info_map
 
