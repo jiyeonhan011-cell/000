@@ -266,9 +266,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     s1unit = [r for r in s1d if _unit_diff_ok(r, "이동처리(F열)", "라벨발행(I열)")]
     s1d    = [r for r in s1d if not _unit_diff_ok(r, "이동처리(F열)", "라벨발행(I열)")]
 
-    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q_cmp,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
-    for lst in (s2m_all, s2d_all, s2l_all, s2c_all):
-        restore_orig(lst, "라벨발행(I열)", ls2q, "라벨발행(I열)", "작업내역(K÷2)")
+    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
     if prework:
         s2pre,s2m,s2d,s2l,s2c = split_prework(s2m_all,s2d_all,s2l_all,s2c_all,prework,"라벨발행(I열)")
