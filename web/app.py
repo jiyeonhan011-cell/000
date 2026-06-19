@@ -49,7 +49,6 @@ UNIT_DIFF_NORMAL = {
     "NI307040":    (24,  "진로 하이트제로 350ml/무알콜 (1BOX=24EA)"),
     "NI309007":    (12,  "랭거스 망고쥬스 449ml (1BOX=12EA)"),
     "NL102043":    (2,   "유진 카사바칩 1.2kg (1BOX=2EA)"),
-    "IC102008":    (30,  "나인티나인 쌀국수 1mm 400g (1BOX=30EA)"),
 }
 
 def _unit_diff_ok(row, col_a, col_b):
