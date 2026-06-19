@@ -32,14 +32,23 @@ def clean_code(v):
 
 
 
-# 파일 간 단위가 달라 수량이 다르게 보이지만 정상인 품목 코드 목록
-# {코드: 설명} 형태 — 수량불일치 대신 "단위다름(정상)"으로 분류
+# 파일 간 단위가 달라 수량이 다르게 보이는 품목 — 환산비 적용 후 일치하면 "단위다름(정상)"
+# {코드: (환산배수, 설명)}  — 한 쪽 수량 * 배수 ≈ 다른 쪽 수량이면 정상
 UNIT_DIFF_NORMAL = {
-    "NA603095":    "새찬 오이피클 일회용/중국산 80g (168ea/BOX)",
-    "1000464464":  "새찬 오이피클 일회용/중국산 80g (168ea/BOX) - 작업내역코드",
-    "153325":      "새찬 오이피클 일회용/중국산 80g (168ea/BOX) - 작업내역코드",
-    "482644":      "새찬 오이피클 일회용/중국산 80g (168ea/BOX) - 작업내역코드",
+    "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)"),
+    "1000464464":  (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
+    "153325":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
+    "482644":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
 }
+
+def _unit_diff_ok(row, col_a, col_b):
+    """환산비 적용 후 두 수량이 일치하는지 확인"""
+    info = UNIT_DIFF_NORMAL.get(row["코드"])
+    if not info: return False
+    factor = info[0]
+    a = row.get(col_a) or 0
+    b = row.get(col_b) or 0
+    return abs(a * factor - b) < 0.001 or abs(b * factor - a) < 0.001
 
 def load_warehouse(path):
     wb  = xlrd.open_workbook(path)
@@ -220,9 +229,9 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     # BOX-EA 환산 품목을 수량불일치에서 분리 (파일 코드 + 품목명 혼용코드 자동감지)
     s1box = [r for r in s1d if is_box_ea(r)]
     s1d   = [r for r in s1d if not is_box_ea(r)]
-    # 단위 다름(정상) 분리
-    s1unit = [r for r in s1d if r["코드"] in UNIT_DIFF_NORMAL]
-    s1d    = [r for r in s1d if r["코드"] not in UNIT_DIFF_NORMAL]
+    # 단위 다름: 환산비 적용 후 수량 일치하면 정상, 불일치하면 수량불일치로 유지
+    s1unit = [r for r in s1d if _unit_diff_ok(r, "이동처리(F열)", "라벨발행(I열)")]
+    s1d    = [r for r in s1d if not _unit_diff_ok(r, "이동처리(F열)", "라벨발행(I열)")]
 
     s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
 
@@ -234,9 +243,9 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     # BOX-EA 환산 품목을 2단계 수량불일치에서도 분리 (파일 코드 + 품목명 혼용코드 자동감지)
     s2box = [r for r in s2d if is_box_ea(r)]
     s2d   = [r for r in s2d if not is_box_ea(r)]
-    # 단위 다름(정상) 분리
-    s2unit = [r for r in s2d if r["코드"] in UNIT_DIFF_NORMAL]
-    s2d    = [r for r in s2d if r["코드"] not in UNIT_DIFF_NORMAL]
+    # 단위 다름: 환산비 적용 후 수량 일치하면 정상, 불일치하면 수량불일치로 유지
+    s2unit = [r for r in s2d if _unit_diff_ok(r, "라벨발행(I열)", "작업내역(K÷2)")]
+    s2d    = [r for r in s2d if not _unit_diff_ok(r, "라벨발행(I열)", "작업내역(K÷2)")]
 
     wb = openpyxl.Workbook()
     ws_sum = wb.active; ws_sum.title = "검수요약"
