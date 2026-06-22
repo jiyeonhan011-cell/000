@@ -414,21 +414,31 @@ def save_config(data):
     CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 cfg = load_config()
-saved_path = cfg.get("folder_path", "")
+DEFAULT_FOLDER = str(Path(__file__).parent / "검수파일")
+saved_path = cfg.get("folder_path", DEFAULT_FOLDER)
 
-folder_path = st.text_input(
-    "📁 검수 파일 폴더 경로",
-    value=saved_path,
-    placeholder="예: C:\\검수파일  또는  C:/검수파일",
-    help="이동처리 / 라벨발행 / 작업내역 / 선작업 하위폴더가 있는 상위 폴더 경로를 입력하세요"
-)
+# 폴더 및 하위폴더 자동 생성
+for sub in ("이동처리", "라벨발행", "작업내역", "선작업"):
+    (Path(saved_path) / sub).mkdir(parents=True, exist_ok=True)
+if "folder_path" not in cfg:
+    save_config({**cfg, "folder_path": DEFAULT_FOLDER})
 
-if folder_path and folder_path != saved_path:
-    save_config({**cfg, "folder_path": folder_path})
+with st.expander("📁 검수 파일 폴더 경로 변경", expanded=False):
+    folder_path = st.text_input(
+        "폴더 경로",
+        value=saved_path,
+        placeholder="예: C:\\검수파일",
+        label_visibility="collapsed"
+    )
+    if folder_path and folder_path != saved_path:
+        for sub in ("이동처리", "라벨발행", "작업내역", "선작업"):
+            (Path(folder_path) / sub).mkdir(parents=True, exist_ok=True)
+        save_config({**cfg, "folder_path": folder_path})
+        st.success(f"저장됨: {folder_path}")
+        saved_path = folder_path
+    folder_path = folder_path or saved_path
 
-if folder_path:
-    for sub in ("이동처리", "라벨발행", "작업내역", "선작업"):
-        (Path(folder_path) / sub).mkdir(parents=True, exist_ok=True)
+st.info(f"📁 검수 파일 폴더: `{folder_path}`")
 
 wh_path = lbl_path = cat_path = pre_path = None
 if folder_path:
