@@ -104,7 +104,10 @@ def load_label(path):
         if state in ('취소','변경'):
             canceled += 1; continue
         제품명   = str(ws.cell(i,7).value  or '').strip()
-        출고수량 = float(ws.cell(i,9).value or 0)
+        try:
+            출고수량 = float(ws.cell(i,9).value or 0)
+        except (ValueError, TypeError):
+            continue
         단위     = str(ws.cell(i,10).value or '').strip()
         규격     = str(ws.cell(i,11).value or '').strip()
         급코드   = clean_code(ws.cell(i,12).value)
