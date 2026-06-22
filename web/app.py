@@ -426,6 +426,10 @@ folder_path = st.text_input(
 if folder_path and folder_path != saved_path:
     save_config({**cfg, "folder_path": folder_path})
 
+if folder_path:
+    for sub in ("이동처리", "라벨발행", "작업내역", "선작업"):
+        (Path(folder_path) / sub).mkdir(parents=True, exist_ok=True)
+
 wh_path = lbl_path = cat_path = pre_path = None
 if folder_path:
     wh_path  = find_latest(Path(folder_path) / "이동처리",  "이동처리")
