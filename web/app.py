@@ -400,11 +400,31 @@ def find_latest(folder, prefix):
     files = [f for f in p.iterdir() if f.name.startswith(prefix) and f.suffix.lower() in ('.xls','.xlsx')]
     return str(max(files, key=lambda f: f.stat().st_mtime)) if files else None
 
+CONFIG_FILE = Path(__file__).parent / "config.json"
+
+def load_config():
+    if CONFIG_FILE.exists():
+        import json
+        try: return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except: pass
+    return {}
+
+def save_config(data):
+    import json
+    CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+cfg = load_config()
+saved_path = cfg.get("folder_path", "")
+
 folder_path = st.text_input(
     "📁 검수 파일 폴더 경로",
+    value=saved_path,
     placeholder="예: C:\\검수파일  또는  C:/검수파일",
     help="이동처리 / 라벨발행 / 작업내역 / 선작업 하위폴더가 있는 상위 폴더 경로를 입력하세요"
 )
+
+if folder_path and folder_path != saved_path:
+    save_config({**cfg, "folder_path": folder_path})
 
 wh_path = lbl_path = cat_path = pre_path = None
 if folder_path:
