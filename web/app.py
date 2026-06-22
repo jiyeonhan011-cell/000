@@ -392,53 +392,47 @@ st.caption("이동처리 → 라벨발행 → 작업내역 자동 비교")
 
 st.divider()
 
-col1, col2 = st.columns(2)
+def find_latest(folder, prefix):
+    """폴더에서 prefix로 시작하는 파일 중 가장 최근 것 반환"""
+    p = Path(folder)
+    if not p.is_dir():
+        return None
+    files = [f for f in p.iterdir() if f.name.startswith(prefix) and f.suffix.lower() in ('.xls','.xlsx')]
+    return str(max(files, key=lambda f: f.stat().st_mtime)) if files else None
 
-with col1:
-    st.subheader("① 이동처리 파일")
-    wh_file = st.file_uploader("이동처리 .xls 파일", type=["xls","xlsx"], key="wh",
-                                label_visibility="collapsed")
-    if wh_file: st.success(f"✓ {wh_file.name}")
+folder_path = st.text_input(
+    "📁 검수 파일 폴더 경로",
+    placeholder="예: C:\\검수파일  또는  C:/검수파일",
+    help="이동처리 / 라벨발행 / 작업내역 / 선작업 하위폴더가 있는 상위 폴더 경로를 입력하세요"
+)
 
-    st.subheader("② 라벨발행 파일")
-    lbl_file = st.file_uploader("라벨발행 .xlsx 파일", type=["xls","xlsx"], key="lbl",
-                                 label_visibility="collapsed")
-    if lbl_file: st.success(f"✓ {lbl_file.name}")
+wh_path = lbl_path = cat_path = pre_path = None
+if folder_path:
+    wh_path  = find_latest(Path(folder_path) / "이동처리",  "이동처리")
+    lbl_path = find_latest(Path(folder_path) / "라벨발행",  "라벨발행")
+    cat_path = find_latest(Path(folder_path) / "작업내역",  "작업내역")
+    pre_path = find_latest(Path(folder_path) / "선작업",    "선작업")
 
-with col2:
-    st.subheader("③ 작업내역 파일")
-    cat_file = st.file_uploader("작업내역 .xlsx 파일", type=["xls","xlsx"], key="cat",
-                                 label_visibility="collapsed")
-    if cat_file: st.success(f"✓ {cat_file.name}")
-
-    st.subheader("④ 선작업 파일 (선택)")
-    pre_file = st.file_uploader("선작업 .xlsx 파일 (없으면 비워두세요)", type=["xls","xlsx"], key="pre",
-                                 label_visibility="collapsed")
-    if pre_file: st.info(f"✓ {pre_file.name}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.success(f"✓ {Path(wh_path).name}")  if wh_path  else c1.error("이동처리 파일 없음")
+    c2.success(f"✓ {Path(lbl_path).name}") if lbl_path else c2.error("라벨발행 파일 없음")
+    c3.success(f"✓ {Path(cat_path).name}") if cat_path else c3.error("작업내역 파일 없음")
+    c4.info(f"✓ {Path(pre_path).name}")    if pre_path else c4.info("선작업 파일 없음 (선택)")
 
 st.divider()
 
-run_btn = st.button("🔍 검수 시작", type="primary", use_container_width=True,
-                    disabled=not (wh_file and lbl_file and cat_file))
+ready = bool(wh_path and lbl_path and cat_path)
+run_btn = st.button("🔍 검수 시작", type="primary", use_container_width=True, disabled=not ready)
 
-if not (wh_file and lbl_file and cat_file):
-    st.warning("① ② ③ 파일을 모두 업로드하면 검수 버튼이 활성화됩니다.")
+if not folder_path:
+    st.warning("위에 폴더 경로를 입력하면 파일을 자동으로 찾아드립니다.")
+elif not ready:
+    st.warning("이동처리 / 라벨발행 / 작업내역 파일을 찾지 못했습니다. 폴더 구조를 확인해주세요.")
 
 if run_btn:
     with st.spinner("검수 중..."):
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                def save(f, name):
-                    p = Path(tmpdir) / name
-                    p.write_bytes(f.read())
-                    return str(p)
-
-                wh_path  = save(wh_file,  "warehouse"  + Path(wh_file.name).suffix)
-                lbl_path = save(lbl_file, "label"      + Path(lbl_file.name).suffix)
-                cat_path = save(cat_file, "catering"   + Path(cat_file.name).suffix)
-                pre_path = save(pre_file, "prework"    + Path(pre_file.name).suffix) if pre_file else None
-
-                buf, result = run_inspection(wh_path, lbl_path, cat_path, pre_path)
+            buf, result = run_inspection(wh_path, lbl_path, cat_path, pre_path)
 
             import pandas as pd
 
