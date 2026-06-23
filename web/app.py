@@ -392,13 +392,28 @@ st.caption("이동처리 → 라벨발행 → 작업내역 자동 비교")
 
 st.divider()
 
-def find_latest(folder, prefix):
-    """폴더에서 prefix로 시작하는 파일 중 가장 최근 것 반환"""
+def list_files(folder, prefix):
     p = Path(folder)
     if not p.is_dir():
+        return []
+    files = sorted(
+        [f for f in p.iterdir() if f.name.startswith(prefix) and f.suffix.lower() in ('.xls','.xlsx')],
+        key=lambda f: f.stat().st_mtime, reverse=True
+    )
+    return files
+
+def find_latest(folder, prefix):
+    files = list_files(folder, prefix)
+    return str(files[0]) if files else None
+
+def file_selectbox(label, folder, prefix, col):
+    files = list_files(folder, prefix)
+    if not files:
+        col.error(f"{prefix} 파일 없음")
         return None
-    files = [f for f in p.iterdir() if f.name.startswith(prefix) and f.suffix.lower() in ('.xls','.xlsx')]
-    return str(max(files, key=lambda f: f.stat().st_mtime)) if files else None
+    names = [f.name for f in files]
+    chosen = col.selectbox(label, names, index=0, label_visibility="visible")
+    return str(Path(folder) / chosen)
 
 CONFIG_FILE = Path(__file__).parent / "config.json"
 
@@ -442,20 +457,17 @@ st.info(f"📁 검수 파일 폴더: `{folder_path}`")
 
 wh_path = lbl_path = cat_path = pre_path = None
 if folder_path:
-    wh_path  = find_latest(Path(folder_path) / "이동처리",  "이동처리")
-    lbl_path = find_latest(Path(folder_path) / "라벨발행",  "라벨발행")
-    cat_path = find_latest(Path(folder_path) / "작업내역",  "작업내역")
-    pre_path = find_latest(Path(folder_path) / "선작업",    "선작업")
-
     c1, c2, c3, c4 = st.columns(4)
-    if wh_path:  c1.success(f"✓ {Path(wh_path).name}")
-    else:        c1.error("이동처리 파일 없음")
-    if lbl_path: c2.success(f"✓ {Path(lbl_path).name}")
-    else:        c2.error("라벨발행 파일 없음")
-    if cat_path: c3.success(f"✓ {Path(cat_path).name}")
-    else:        c3.error("작업내역 파일 없음")
-    if pre_path: c4.info(f"✓ {Path(pre_path).name}")
-    else:        c4.info("선작업 파일 없음 (선택)")
+    wh_path  = file_selectbox("① 이동처리", Path(folder_path) / "이동처리", "이동처리", c1)
+    lbl_path = file_selectbox("② 라벨발행", Path(folder_path) / "라벨발행", "라벨발행", c2)
+    cat_path = file_selectbox("③ 작업내역", Path(folder_path) / "작업내역", "작업내역", c3)
+    pre_files = list_files(Path(folder_path) / "선작업", "선작업")
+    if pre_files:
+        pre_names = ["(없음)"] + [f.name for f in pre_files]
+        chosen = c4.selectbox("④ 선작업 (선택)", pre_names, index=1, label_visibility="visible")
+        pre_path = str(Path(folder_path) / "선작업" / chosen) if chosen != "(없음)" else None
+    else:
+        c4.info("선작업 파일 없음 (선택)")
 
 st.divider()
 
