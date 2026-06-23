@@ -448,10 +448,14 @@ if folder_path:
     pre_path = find_latest(Path(folder_path) / "선작업",    "선작업")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.success(f"✓ {Path(wh_path).name}")  if wh_path  else c1.error("이동처리 파일 없음")
-    c2.success(f"✓ {Path(lbl_path).name}") if lbl_path else c2.error("라벨발행 파일 없음")
-    c3.success(f"✓ {Path(cat_path).name}") if cat_path else c3.error("작업내역 파일 없음")
-    c4.info(f"✓ {Path(pre_path).name}")    if pre_path else c4.info("선작업 파일 없음 (선택)")
+    if wh_path:  c1.success(f"✓ {Path(wh_path).name}")
+    else:        c1.error("이동처리 파일 없음")
+    if lbl_path: c2.success(f"✓ {Path(lbl_path).name}")
+    else:        c2.error("라벨발행 파일 없음")
+    if cat_path: c3.success(f"✓ {Path(cat_path).name}")
+    else:        c3.error("작업내역 파일 없음")
+    if pre_path: c4.info(f"✓ {Path(pre_path).name}")
+    else:        c4.info("선작업 파일 없음 (선택)")
 
 st.divider()
 
