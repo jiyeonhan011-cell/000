@@ -380,22 +380,70 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    .main { max-width: 900px; margin: 0 auto; }
-    .stFileUploader > label { font-size: 1rem; font-weight: 600; }
+    /* 전체 배경 */
+    .stApp { background-color: #f0f2f6; }
+
+    /* 사이드바 */
+    [data-testid="stSidebar"] {
+        background-color: #1a2744;
+    }
+    [data-testid="stSidebar"] * { color: #e8eaf0 !important; }
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] .stCheckbox label,
+    [data-testid="stSidebar"] .stTextInput label { color: #a0aec0 !important; font-size: 0.8rem !important; }
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
+        background-color: #253563 !important; border-color: #3a4f7a !important; color: #e8eaf0 !important;
+    }
+    [data-testid="stSidebar"] input {
+        background-color: #253563 !important; border-color: #3a4f7a !important; color: #e8eaf0 !important;
+    }
+    [data-testid="stSidebar"] .stButton > button {
+        background-color: #2563eb !important; color: white !important;
+        border: none !important; border-radius: 6px !important;
+        font-weight: 600 !important; width: 100%;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background-color: #1d4ed8 !important;
+    }
+    [data-testid="stSidebar"] hr { border-color: #2d3f6b !important; }
+
+    /* 메트릭 카드 */
     div[data-testid="metric-container"] {
-        background: #f0f4ff; border-radius: 8px; padding: 12px;
+        background: white; border-radius: 10px; padding: 16px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        border-left: 4px solid #2563eb;
     }
-    .result-box {
-        background: #f8f9fa; border-radius: 10px; padding: 20px;
-        border: 1px solid #dee2e6; margin-top: 16px;
+
+    /* 헤더 */
+    .wms-header {
+        background: linear-gradient(135deg, #1a2744 0%, #2563eb 100%);
+        padding: 20px 28px; border-radius: 12px; margin-bottom: 20px;
+        display: flex; align-items: center; gap: 16px;
     }
+    .wms-header h1 { color: white !important; margin: 0; font-size: 1.6rem; }
+    .wms-header p  { color: #93c5fd !important; margin: 0; font-size: 0.9rem; }
+
+    /* 섹션 헤더 */
+    .section-header {
+        background: white; border-radius: 10px; padding: 12px 20px;
+        margin: 16px 0 8px 0; border-left: 5px solid #2563eb;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        font-weight: 700; font-size: 1rem; color: #1a2744;
+    }
+
+    /* 상태 배너 */
+    .status-ok  { background:#dcfce7; border:1.5px solid #16a34a; border-radius:10px; padding:16px 20px; color:#15803d; font-weight:700; font-size:1.05rem; }
+    .status-err { background:#fee2e2; border:1.5px solid #dc2626; border-radius:10px; padding:16px 20px; color:#b91c1c; font-weight:700; font-size:1.05rem; }
+
+    /* expander */
+    [data-testid="stExpander"] { background: white; border-radius: 10px; border: 1px solid #e2e8f0 !important; }
+
+    /* 구분선 */
+    hr { border-color: #e2e8f0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📦 창고이동 검수 프로그램")
-st.caption("이동처리 → 라벨발행 → 작업내역 자동 비교")
-
-st.divider()
+# ── 헬퍼 함수 ──────────────────────────────────────────────────────
 
 def list_files(folder, prefix):
     p = Path(folder)
@@ -411,13 +459,13 @@ def find_latest(folder, prefix):
     files = list_files(folder, prefix)
     return str(files[0]) if files else None
 
-def file_selectbox(label, folder, prefix, col):
+def file_selectbox(label, folder, prefix, container):
     files = list_files(folder, prefix)
     if not files:
-        col.error(f"{prefix} 파일 없음")
+        container.error(f"{prefix} 파일 없음")
         return None
     names = [f.name for f in files]
-    chosen = col.selectbox(label, names, index=0, label_visibility="visible")
+    chosen = container.selectbox(label, names, index=0)
     return str(Path(folder) / chosen)
 
 CONFIG_FILE = Path(__file__).parent / "config.json"
@@ -433,59 +481,74 @@ def save_config(data):
     import json
     CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
+# ── 사이드바 ───────────────────────────────────────────────────────
+
 cfg = load_config()
 DEFAULT_FOLDER = str(Path(__file__).parent / "검수파일")
 saved_path = cfg.get("folder_path", DEFAULT_FOLDER)
 
-# 폴더 및 하위폴더 자동 생성
 for sub in ("이동처리", "라벨발행", "작업내역", "선작업"):
     (Path(saved_path) / sub).mkdir(parents=True, exist_ok=True)
 if "folder_path" not in cfg:
     save_config({**cfg, "folder_path": DEFAULT_FOLDER})
 
-with st.expander("📁 검수 파일 폴더 경로 변경", expanded=False):
-    folder_path = st.text_input(
-        "폴더 경로",
-        value=saved_path,
-        placeholder="예: C:\\검수파일",
-        label_visibility="collapsed"
-    )
+with st.sidebar:
+    st.markdown("## 📦 창고이동 검수")
+    st.markdown("---")
+
+    st.markdown("##### 📁 검수 파일 폴더")
+    folder_path = st.text_input("폴더 경로", value=saved_path, label_visibility="collapsed")
     if folder_path and folder_path != saved_path:
         for sub in ("이동처리", "라벨발행", "작업내역", "선작업"):
             (Path(folder_path) / sub).mkdir(parents=True, exist_ok=True)
         save_config({**cfg, "folder_path": folder_path})
-        st.success(f"저장됨: {folder_path}")
         saved_path = folder_path
     folder_path = folder_path or saved_path
 
-st.info(f"📁 검수 파일 폴더: `{folder_path}`")
+    st.markdown("---")
+    st.markdown("##### 📄 파일 선택")
 
-wh_path = lbl_path = cat_path = pre_path = None
-if folder_path:
-    c1, c2, c3, c4 = st.columns(4)
-    wh_path  = file_selectbox("① 이동처리", Path(folder_path) / "이동처리", "이동처리", c1)
-    lbl_path = file_selectbox("② 라벨발행", Path(folder_path) / "라벨발행", "라벨발행", c2)
-    cat_path = file_selectbox("③ 작업내역", Path(folder_path) / "작업내역", "작업내역", c3)
-    pre_files = list_files(Path(folder_path) / "선작업", "선작업")
-    if pre_files:
-        pre_names = ["(없음)"] + [f.name for f in pre_files]
-        chosen = c4.selectbox("④ 선작업 (선택)", pre_names, index=1, label_visibility="visible")
-        pre_path = str(Path(folder_path) / "선작업" / chosen) if chosen != "(없음)" else None
-    else:
-        c4.info("선작업 파일 없음 (선택)")
+    wh_path = lbl_path = cat_path = pre_path = None
+    if folder_path:
+        wh_path  = file_selectbox("① 이동처리",  Path(folder_path) / "이동처리",  "이동처리",  st.sidebar)
+        lbl_path = file_selectbox("② 라벨발행",  Path(folder_path) / "라벨발행",  "라벨발행",  st.sidebar)
+        cat_path = file_selectbox("③ 작업내역",  Path(folder_path) / "작업내역",  "작업내역",  st.sidebar)
+        pre_files = list_files(Path(folder_path) / "선작업", "선작업")
+        if pre_files:
+            pre_names = ["(없음)"] + [f.name for f in pre_files]
+            chosen = st.selectbox("④ 선작업 (선택)", pre_names, index=1)
+            pre_path = str(Path(folder_path) / "선작업" / chosen) if chosen != "(없음)" else None
+        else:
+            st.info("선작업 파일 없음")
 
-st.divider()
+    st.markdown("---")
+    st.markdown("##### ⚙️ 검수 옵션")
+    div2 = st.checkbox("작업내역 ÷2 적용", value=True, help="2번 이동 처리된 경우 체크, 1번이면 해제")
 
-div2 = st.checkbox("작업내역 수량 ÷2 적용 (2번 이동 처리)", value=True,
-                   help="작업내역이 2번 이동 처리된 경우 체크, 1번만 이동된 경우 체크 해제")
+    st.markdown("---")
+    ready = bool(wh_path and lbl_path and cat_path)
+    run_btn = st.button("🔍 검수 시작", disabled=not ready, use_container_width=True)
+    if not ready:
+        st.caption("이동처리 · 라벨발행 · 작업내역 파일이 필요합니다.")
 
-ready = bool(wh_path and lbl_path and cat_path)
-run_btn = st.button("🔍 검수 시작", type="primary", use_container_width=True, disabled=not ready)
+# ── 메인 화면 ──────────────────────────────────────────────────────
 
-if not folder_path:
-    st.warning("위에 폴더 경로를 입력하면 파일을 자동으로 찾아드립니다.")
-elif not ready:
-    st.warning("이동처리 / 라벨발행 / 작업내역 파일을 찾지 못했습니다. 폴더 구조를 확인해주세요.")
+st.markdown("""
+<div class="wms-header">
+  <div>
+    <h1>📦 창고이동 검수 시스템</h1>
+    <p>이동처리 → 라벨발행 → 작업내역 자동 비교</p>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+if not run_btn:
+    st.markdown("""
+    <div style="background:white;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+        <div style="font-size:3rem;">📋</div>
+        <div style="font-size:1.1rem;font-weight:600;margin-top:12px;color:#475569;">왼쪽 사이드바에서 파일을 선택하고 검수를 시작하세요</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if run_btn:
     with st.spinner("검수 중..."):
@@ -501,39 +564,57 @@ if run_btn:
                 keys = [k for k in keys if k in rows[0]]
                 return pd.DataFrame([{k: r.get(k,"-") for k in keys} for r in rows])
 
-            st.success("✅ 검수 완료!")
             rows = result["rows"]
             A,B = result["cols"]["A"], result["cols"]["B"]
             C,D = result["cols"]["C"], result["cols"]["D"]
 
+            # ── 최종 상태 배너 ──
+            total_issue = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
+            if total_issue == 0:
+                st.markdown('<div class="status-ok">✅ 정상 — STEP 1, STEP 2 모두 확인이 필요한 항목이 없습니다.</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="status-err">🚨 확인 필요 — {total_issue}건의 항목을 확인해야 합니다.</div>', unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── 요약 지표 ──
+            total_normal = result["s1_matched"] + result["s1_diff"] + result["s1_box"] + result["s1_unit"] + result["s2_pre"] + result["s2_box"] + result["s2_unit"]
+            qty_diff_val = result["s1_lbl_qty"] - result["s1_wh_qty"]
+            c1,c2,c3,c4 = st.columns(4)
+            c1.metric("✅ 정상 품목", total_normal)
+            c2.metric("🚨 확인 필요", total_issue)
+            c3.metric("STEP1 일치율", f"{result['s1_rate']}%")
+            c4.metric("STEP2 일치율", f"{result['s2_rate']}%")
+
+            st.markdown("---")
+
             # ── STEP 1 ──
-            st.markdown("### STEP 1: 이동처리 vs 라벨발행")
+            st.markdown('<div class="section-header">STEP 1 &nbsp;·&nbsp; 이동처리 vs 라벨발행</div>', unsafe_allow_html=True)
             c1,c2 = st.columns(2)
-            c1.metric("이동처리 이동수량 합계", f"{result['s1_wh_qty']:,.0f}")
-            c2.metric("라벨발행 출고수량 합계", f"{result['s1_lbl_qty']:,.0f}",
+            c1.metric("이동처리 수량 합계", f"{result['s1_wh_qty']:,.0f}")
+            c2.metric("라벨발행 수량 합계", f"{result['s1_lbl_qty']:,.0f}",
                       delta=f"{result['s1_lbl_qty']-result['s1_wh_qty']:+,.0f}")
             c1,c2,c3,c4,c5,c6 = st.columns(6)
-            c1.metric("✅ 일치",          result["s1_matched"])
-            c2.metric("❌ 수량불일치",    result["s1_diff"])
-            c3.metric("✅ BOX/EA환산",    result["s1_box"])
-            c4.metric("✅ 단위다름(정상)", result["s1_unit"])
-            c5.metric("⚠️ 이동처리만",   result["s1_wh"])
-            c6.metric("⚠️ 라벨발행만",   result["s1_lbl"])
-            st.caption(f"일치율: {result['s1_rate']}%  |  취소/변경 제외: {result['canceled']}건")
+            c1.metric("일치",          result["s1_matched"])
+            c2.metric("수량불일치",    result["s1_diff"])
+            c3.metric("BOX/EA환산",    result["s1_box"])
+            c4.metric("단위다름(정상)", result["s1_unit"])
+            c5.metric("이동처리만",    result["s1_wh"])
+            c6.metric("라벨발행만",    result["s1_lbl"])
+            st.caption(f"취소/변경 제외: {result['canceled']}건")
 
             if rows["s1_diff"]:
-                with st.expander(f"❌ 수량불일치 품목 ({result['s1_diff']}건)", expanded=True):
+                with st.expander(f"❌ 수량불일치 ({result['s1_diff']}건)", expanded=True):
                     st.dataframe(to_df(rows["s1_diff"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_wh"]:
-                with st.expander(f"⚠️ 이동처리에만 있는 품목 ({result['s1_wh']}건)"):
+                with st.expander(f"⚠️ 이동처리에만 ({result['s1_wh']}건)"):
                     st.dataframe(to_df(rows["s1_wh"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_lbl"]:
-                with st.expander(f"⚠️ 라벨발행에만 있는 품목 ({result['s1_lbl']}건)"):
+                with st.expander(f"⚠️ 라벨발행에만 ({result['s1_lbl']}건)"):
                     st.dataframe(to_df(rows["s1_lbl"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_box"]:
                 s1box_err = [r for r in rows["s1_box"] if abs(r.get("차이") or 0) > 0.001]
-                with st.expander(f"✅ BOX/EA환산 ({result['s1_box']}건) {'⚠️ 수량 확인 필요 ' + str(len(s1box_err)) + '건' if s1box_err else ''}",
-                                 expanded=bool(s1box_err)):
+                with st.expander(f"✅ BOX/EA환산 ({result['s1_box']}건){' ⚠️ 수량 확인 필요 ' + str(len(s1box_err)) + '건' if s1box_err else ''}", expanded=bool(s1box_err)):
                     if s1box_err:
                         st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
                     st.dataframe(to_df(rows["s1_box"], [A,B]), use_container_width=True, hide_index=True)
@@ -541,34 +622,36 @@ if run_btn:
                 with st.expander(f"✅ 단위다름(정상) ({result['s1_unit']}건)"):
                     st.caption("파일 간 단위가 달라 수량이 다르게 표시되지만 정상 처리된 품목입니다.")
                     st.dataframe(to_df(rows["s1_unit"], [A,B]), use_container_width=True, hide_index=True)
+            if rows["s1_matched"]:
+                with st.expander(f"✅ 일치 ({result['s1_matched']}건)"):
+                    st.dataframe(to_df(rows["s1_matched"], [A,B]), use_container_width=True, hide_index=True)
 
-            st.divider()
+            st.markdown("---")
 
             # ── STEP 2 ──
-            st.markdown("### STEP 2: 라벨발행 vs 작업내역")
+            st.markdown('<div class="section-header">STEP 2 &nbsp;·&nbsp; 라벨발행 vs 작업내역</div>', unsafe_allow_html=True)
             c1,c2 = st.columns(2)
             cat_label = "작업내역 수량 합계(÷2)" if div2 else "작업내역 수량 합계"
-            c1.metric("라벨발행 출고수량 합계", f"{result['s2_lbl_qty']:,.0f}")
+            c1.metric("라벨발행 수량 합계", f"{result['s2_lbl_qty']:,.0f}")
             c2.metric(cat_label, f"{result['s2_cat_qty']:,.0f}",
                       delta=f"{result['s2_cat_qty']-result['s2_lbl_qty']:+,.0f}")
             c1,c2,c3,c4,c5,c6,c7 = st.columns(7)
-            c1.metric("✅ 일치",          result["s2_matched"])
-            c2.metric("❌ 수량불일치",    result["s2_diff"])
-            c3.metric("✅ BOX/EA환산",    result["s2_box"])
-            c4.metric("✅ 단위다름(정상)", result["s2_unit"])
-            c5.metric("⚠️ 라벨발행만",   result["s2_lbl"])
-            c6.metric("⚠️ 작업내역만",   result["s2_cat"])
-            c7.metric("✅ 선작업",        result["s2_pre"])
-            st.caption(f"일치율: {result['s2_rate']}%")
+            c1.metric("일치",          result["s2_matched"])
+            c2.metric("수량불일치",    result["s2_diff"])
+            c3.metric("BOX/EA환산",    result["s2_box"])
+            c4.metric("단위다름(정상)", result["s2_unit"])
+            c5.metric("라벨발행만",    result["s2_lbl"])
+            c6.metric("작업내역만",    result["s2_cat"])
+            c7.metric("선작업",        result["s2_pre"])
 
             if rows["s2_diff"]:
-                with st.expander(f"❌ 수량불일치 품목 ({result['s2_diff']}건)", expanded=True):
+                with st.expander(f"❌ 수량불일치 ({result['s2_diff']}건)", expanded=True):
                     st.dataframe(to_df(rows["s2_diff"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_lbl"]:
-                with st.expander(f"⚠️ 라벨발행에만 있는 품목 ({result['s2_lbl']}건)"):
+                with st.expander(f"⚠️ 라벨발행에만 ({result['s2_lbl']}건)"):
                     st.dataframe(to_df(rows["s2_lbl"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_cat"]:
-                with st.expander(f"⚠️ 작업내역에만 있는 품목 ({result['s2_cat']}건)"):
+                with st.expander(f"⚠️ 작업내역에만 ({result['s2_cat']}건)"):
                     st.dataframe(to_df(rows["s2_cat"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_pre"]:
                 with st.expander(f"✅ 선작업(정상) ({result['s2_pre']}건)"):
@@ -577,8 +660,7 @@ if run_btn:
                                  use_container_width=True, hide_index=True)
             if rows["s2_box"]:
                 s2box_err = [r for r in rows["s2_box"] if abs(r.get("차이") or 0) > 0.001]
-                with st.expander(f"✅ BOX/EA환산 ({result['s2_box']}건) {'⚠️ 수량 확인 필요 ' + str(len(s2box_err)) + '건' if s2box_err else ''}",
-                                 expanded=bool(s2box_err)):
+                with st.expander(f"✅ BOX/EA환산 ({result['s2_box']}건){' ⚠️ 수량 확인 필요 ' + str(len(s2box_err)) + '건' if s2box_err else ''}", expanded=bool(s2box_err)):
                     if s2box_err:
                         st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
                     st.dataframe(to_df(rows["s2_box"], [C,D]), use_container_width=True, hide_index=True)
@@ -586,30 +668,15 @@ if run_btn:
                 with st.expander(f"✅ 단위다름(정상) ({result['s2_unit']}건)"):
                     st.caption("파일 간 단위가 달라 수량이 다르게 표시되지만 정상 처리된 품목입니다.")
                     st.dataframe(to_df(rows["s2_unit"], [C,D]), use_container_width=True, hide_index=True)
+            if rows["s2_matched"]:
+                with st.expander(f"✅ 일치 ({result['s2_matched']}건)"):
+                    st.dataframe(to_df(rows["s2_matched"], [C,D]), use_container_width=True, hide_index=True)
 
-            st.divider()
-
-            # ── 최종 요약 ──
-            total_normal = result["s1_matched"] + result["s1_diff"] + result["s1_box"] + result["s1_unit"] + result["s2_pre"] + result["s2_box"] + result["s2_unit"]
-            total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
-            qty_diff_val = result["s1_lbl_qty"] - result["s1_wh_qty"]
-
-            st.markdown("### 📋 최종 결과 요약")
-            if total_issue == 0:
-                st.success("✅ 정상 — STEP 1, STEP 2 모두 확인이 필요한 항목이 없습니다.")
-            else:
-                st.error(f"🚨 확인 필요 — STEP 1, STEP 2 합계 {total_issue}건의 항목을 확인해야 합니다.")
-            c1,c2,c3 = st.columns(3)
-            c1.metric("✅ 정상 품목 수", total_normal,
-                      help="일치 + 수량불일치 + BOX/EA환산 + 선작업")
-            c2.metric("🚨 확인 필요 품목 수", total_issue,
-                      help="이동처리만/라벨발행만/작업내역만/2단계 수량불일치")
-            c3.metric("라벨발행 - 이동수량 차이", f"{qty_diff_val:+,.0f}")
-
+            st.markdown("---")
             st.download_button(
                 label="📥 결과 엑셀 다운로드",
                 data=buf,
-                file_name="창고이동_3단계검수결과.xlsx",
+                file_name="창고이동_검수결과.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
                 type="primary",
