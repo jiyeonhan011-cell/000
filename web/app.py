@@ -139,7 +139,10 @@ def load_catering(path):
                 "규격":str(ws.cell(i,9).value or '').strip(),
                 "단위":단위,
             }
-    return {k:v/2 for k,v in qty_map.items()}, info_map
+    return qty_map, info_map
+
+def apply_catering_div(qty_map, div2):
+    return {k: v/2 for k,v in qty_map.items()} if div2 else dict(qty_map)
 
 def load_prework(path):
     if not path or not os.path.exists(path): return {}, set()
@@ -240,10 +243,12 @@ def write_xl_sheet(wb, title, rows, hdr_bg, row_bg, col_a, col_b, show_date=True
     ws.auto_filter.ref = f"A1:{get_column_letter(len(base_h))}1"
 
 
-def run_inspection(wh_path, lbl_path, cat_path, pre_path):
+def run_inspection(wh_path, lbl_path, cat_path, pre_path, div2=True):
     wh_qty, wh_info = load_warehouse(wh_path)
     ls1q, ls1q_cmp, ls1i, ls2q, ls2q_cmp, ls2i, canceled = load_label(lbl_path)
-    cat_qty, cat_info = load_catering(cat_path)
+    raw_cat_qty, cat_info = load_catering(cat_path)
+    cat_qty = apply_catering_div(raw_cat_qty, div2)
+    cat_col = "작업내역(K÷2)" if div2 else "작업내역(K)"
     prework, box_ea_codes = load_prework(pre_path) if pre_path else ({}, set())
 
     def is_box_ea(row):
@@ -269,7 +274,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     s1unit = [r for r in s1d if _unit_diff_ok(r, "이동처리(F열)", "라벨발행(I열)")]
     s1d    = [r for r in s1d if not _unit_diff_ok(r, "이동처리(F열)", "라벨발행(I열)")]
 
-    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)","작업내역(K÷2)")
+    s2m_all,s2d_all,s2l_all,s2c_all = compare(ls2q,ls2i,cat_qty,cat_info,"라벨발행(I열)",cat_col)
 
     if prework:
         s2pre,s2m,s2d,s2l,s2c = split_prework(s2m_all,s2d_all,s2l_all,s2c_all,prework,"라벨발행(I열)")
@@ -339,7 +344,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path):
     buf.seek(0)
 
     A,B = "이동처리(F열)","라벨발행(I열)"
-    C,D = "라벨발행(I열)","작업내역(K÷2)"
+    C,D = "라벨발행(I열)",cat_col
     def sumq(rows, col): return sum(r[col] for r in rows if isinstance(r.get(col), (int,float)))
     all_s1 = s1m+s1d+s1w+s1l+s1box+s1unit
     all_s2 = s2m+s2d+s2l+s2c+s2pre+s2box+s2unit
@@ -471,6 +476,9 @@ if folder_path:
 
 st.divider()
 
+div2 = st.checkbox("작업내역 수량 ÷2 적용 (2번 이동 처리)", value=True,
+                   help="작업내역이 2번 이동 처리된 경우 체크, 1번만 이동된 경우 체크 해제")
+
 ready = bool(wh_path and lbl_path and cat_path)
 run_btn = st.button("🔍 검수 시작", type="primary", use_container_width=True, disabled=not ready)
 
@@ -482,7 +490,7 @@ elif not ready:
 if run_btn:
     with st.spinner("검수 중..."):
         try:
-            buf, result = run_inspection(wh_path, lbl_path, cat_path, pre_path)
+            buf, result = run_inspection(wh_path, lbl_path, cat_path, pre_path, div2=div2)
 
             import pandas as pd
 
@@ -539,8 +547,9 @@ if run_btn:
             # ── STEP 2 ──
             st.markdown("### STEP 2: 라벨발행 vs 작업내역")
             c1,c2 = st.columns(2)
+            cat_label = "작업내역 수량 합계(÷2)" if div2 else "작업내역 수량 합계"
             c1.metric("라벨발행 출고수량 합계", f"{result['s2_lbl_qty']:,.0f}")
-            c2.metric("작업내역 수량 합계(÷2)", f"{result['s2_cat_qty']:,.0f}",
+            c2.metric(cat_label, f"{result['s2_cat_qty']:,.0f}",
                       delta=f"{result['s2_cat_qty']-result['s2_lbl_qty']:+,.0f}")
             c1,c2,c3,c4,c5,c6,c7 = st.columns(7)
             c1.metric("✅ 일치",          result["s2_matched"])
