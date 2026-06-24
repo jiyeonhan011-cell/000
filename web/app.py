@@ -34,7 +34,7 @@ def clean_code(v):
 
 # 파일 간 단위가 달라 수량이 다르게 보이는 품목 — 환산비 적용 후 일치하면 "단위다름(정상)"
 # {코드: (환산배수, 설명)}  — 한 쪽 수량 * 배수 ≈ 다른 쪽 수량이면 정상
-UNIT_DIFF_NORMAL = {
+_UNIT_DIFF_DEFAULT = {
     "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)"),
     "1000464464":  (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
     "153325":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
@@ -50,6 +50,23 @@ UNIT_DIFF_NORMAL = {
     "NI309007":    (12,  "랭거스 망고쥬스 449ml (1BOX=12EA)"),
     "NL102043":    (2,   "유진 카사바칩 1.2kg (1BOX=2EA)"),
 }
+
+UNIT_FILE = Path(__file__).parent / "unit_config.json"
+
+def load_unit_config():
+    import json
+    if UNIT_FILE.exists():
+        try:
+            data = json.loads(UNIT_FILE.read_text(encoding="utf-8"))
+            return {k: tuple(v) for k,v in data.items()}
+        except: pass
+    return dict(_UNIT_DIFF_DEFAULT)
+
+def save_unit_config(data):
+    import json
+    UNIT_FILE.write_text(json.dumps({k: list(v) for k,v in data.items()}, ensure_ascii=False, indent=2), encoding="utf-8")
+
+UNIT_DIFF_NORMAL = load_unit_config()
 
 def _unit_diff_ok(row, col_a, col_b):
     """환산비 적용 후 두 수량이 일치하는지 확인"""
@@ -495,6 +512,8 @@ if "folder_path" not in cfg:
 with st.sidebar:
     st.markdown("## 📦 창고이동 검수")
     st.markdown("---")
+    page = st.radio("메뉴", ["🔍 검수", "⚙️ 환산비 관리"], label_visibility="collapsed")
+    st.markdown("---")
 
     st.markdown("##### 📁 검수 파일 폴더")
     folder_path = st.text_input("폴더 경로", value=saved_path, label_visibility="collapsed")
@@ -542,6 +561,54 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ── 환산비 관리 페이지 ────────────────────────────────────────────
+if page == "⚙️ 환산비 관리":
+    st.markdown('<div class="section-header">⚙️ 단위 환산비 관리</div>', unsafe_allow_html=True)
+    st.caption("파일마다 단위가 달라 수량이 다르게 보이는 품목을 등록합니다. 등록된 품목은 환산비 적용 후 일치하면 '단위다름(정상)'으로 분류됩니다.")
+    st.markdown("")
+
+    unit_data = load_unit_config()
+
+    # 신규 추가
+    with st.expander("➕ 새 품목 추가", expanded=True):
+        c1, c2, c3, c4 = st.columns([2, 3, 1, 1])
+        new_code  = c1.text_input("품목 코드", placeholder="예: NA603095")
+        new_desc  = c2.text_input("품목명/설명", placeholder="예: 새찬 오이피클 80g (1BOX=168EA)")
+        new_factor = c3.number_input("환산배수", min_value=1, value=1, step=1)
+        c4.markdown("<br>", unsafe_allow_html=True)
+        add_btn = c4.button("추가", use_container_width=True)
+        if add_btn:
+            if not new_code.strip():
+                st.error("품목 코드를 입력해주세요.")
+            elif new_code.strip() in unit_data:
+                st.warning(f"이미 등록된 코드입니다: {new_code.strip()}")
+            else:
+                unit_data[new_code.strip()] = (int(new_factor), new_desc.strip())
+                save_unit_config(unit_data)
+                UNIT_DIFF_NORMAL.update(unit_data)
+                st.success(f"추가됨: {new_code.strip()}")
+                st.rerun()
+
+    st.markdown("")
+    st.markdown(f"##### 등록된 품목 ({len(unit_data)}건)")
+
+    for code, (factor, desc) in list(unit_data.items()):
+        c1, c2, c3, c4 = st.columns([2, 4, 1, 1])
+        c1.code(code)
+        c2.write(desc)
+        c3.write(f"×{factor}")
+        del_btn = c4.button("삭제", key=f"del_{code}")
+        if del_btn:
+            del unit_data[code]
+            save_unit_config(unit_data)
+            UNIT_DIFF_NORMAL.clear()
+            UNIT_DIFF_NORMAL.update(unit_data)
+            st.success(f"삭제됨: {code}")
+            st.rerun()
+
+    st.stop()
+
+# ── 검수 페이지 ───────────────────────────────────────────────────
 if not run_btn:
     st.markdown("""
     <div style="background:white;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
