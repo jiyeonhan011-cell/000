@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-창고이동 3단계 검수 - Streamlit 버전
+창고이동 검수 - Streamlit 버전
 실행: streamlit run app.py
 """
 
@@ -292,7 +292,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path, div2=True):
     ws_sum = wb.active; ws_sum.title = "검수요약"
     ws_sum.column_dimensions["A"].width=46; ws_sum.column_dimensions["B"].width=16
     ws_sum.merge_cells("A1:B1")
-    hdr_style(ws_sum.cell(1,1,"창고이동 3단계 검수 결과"), "1F4E79")
+    hdr_style(ws_sum.cell(1,1,"창고이동 검수 결과"), "1F4E79")
     s1c = len(s1m)+len(s1d); s2c_cnt = len(s2m)+len(s2d)
     summary_rows = [
         ("── STEP 1: 이동처리(F열) vs 라벨발행(I열) ──",""),
@@ -373,7 +373,7 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path, div2=True):
 # ── Streamlit UI ───────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="창고이동 3단계 검수",
+    page_title="창고이동 검수",
     page_icon="📦",
     layout="wide",
 )
@@ -392,7 +392,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📦 창고이동 3단계 검수 프로그램")
+st.title("📦 창고이동 검수 프로그램")
 st.caption("이동처리 → 라벨발행 → 작업내역 자동 비교")
 
 st.divider()
