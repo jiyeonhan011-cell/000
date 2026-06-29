@@ -34,21 +34,22 @@ def clean_code(v):
 
 # 파일 간 단위가 달라 수량이 다르게 보이는 품목 — 환산비 적용 후 일치하면 "단위다름(정상)"
 # {코드: (환산배수, 설명)}  — 한 쪽 수량 * 배수 ≈ 다른 쪽 수량이면 정상
+# 값 형식: (환산배수, 품목명, 벤더사, 급식코드, ERP코드)
 _UNIT_DIFF_DEFAULT = {
-    "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)"),
-    "1000464464":  (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
-    "153325":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
-    "482644":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA) - 작업내역코드"),
-    "NB701107":    (30,  "청수식품 맑은물 냉면육수 300g/동치미맛 (1BOX=30EA)"),
-    "NB706070":    (30,  "영미 동치미 냉면육수 310g (1BOX=30EA)"),
-    "NE101062":    (6,   "삼원 튀김스프링 회오리감자 700g/냉동 (1BOX=6PAK)"),
-    "NE101075":    (6,   "화영푸드 회오리감자 800g/냉동 (1BOX=6PAK)"),
-    "NH101013":    (10,  "푸드림 미니바 슈가스틱 (1BOX=10EA)"),
-    "NH512021":    (10,  "식예원 가쓰오맛 후리가께 50g (1PAC=10EA)"),
-    "NH610019":    (20,  "신진 신화당 50g (1PAK=20EA)"),
-    "NI307040":    (24,  "진로 하이트제로 350ml/무알콜 (1BOX=24EA)"),
-    "NI309007":    (12,  "랭거스 망고쥬스 449ml (1BOX=12EA)"),
-    "NL102043":    (2,   "유진 카사바칩 1.2kg (1BOX=2EA)"),
+    "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "", "1000464464", "NA603095"),
+    "1000464464":  (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "", "1000464464", "NA603095"),
+    "153325":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "", "153325",      "NA603095"),
+    "482644":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "", "482644",      "NA603095"),
+    "NB701107":    (30,  "청수식품 맑은물 냉면육수 300g/동치미맛 (1BOX=30EA)", "", "", "NB701107"),
+    "NB706070":    (30,  "영미 동치미 냉면육수 310g (1BOX=30EA)",          "", "", "NB706070"),
+    "NE101062":    (6,   "삼원 튀김스프링 회오리감자 700g/냉동 (1BOX=6PAK)", "", "", "NE101062"),
+    "NE101075":    (6,   "화영푸드 회오리감자 800g/냉동 (1BOX=6PAK)",      "", "", "NE101075"),
+    "NH101013":    (10,  "푸드림 미니바 슈가스틱 (1BOX=10EA)",             "", "", "NH101013"),
+    "NH512021":    (10,  "식예원 가쓰오맛 후리가께 50g (1PAC=10EA)",       "", "", "NH512021"),
+    "NH610019":    (20,  "신진 신화당 50g (1PAK=20EA)",                    "", "", "NH610019"),
+    "NI307040":    (24,  "진로 하이트제로 350ml/무알콜 (1BOX=24EA)",       "", "", "NI307040"),
+    "NI309007":    (12,  "랭거스 망고쥬스 449ml (1BOX=12EA)",              "", "", "NI309007"),
+    "NL102043":    (2,   "유진 카사바칩 1.2kg (1BOX=2EA)",                 "", "", "NL102043"),
 }
 
 UNIT_FILE = Path(__file__).parent / "unit_config.json"
@@ -58,7 +59,14 @@ def load_unit_config():
     if UNIT_FILE.exists():
         try:
             data = json.loads(UNIT_FILE.read_text(encoding="utf-8"))
-            return {k: tuple(v) for k,v in data.items()}
+            result = {}
+            for k, v in data.items():
+                t = tuple(v)
+                # 구형 형식 (factor, desc) → (factor, 품목명, 벤더사, 급식코드, ERP코드)
+                if len(t) == 2:
+                    t = (t[0], t[1], "", "", "")
+                result[k] = t
+            return result
         except: pass
     return dict(_UNIT_DIFF_DEFAULT)
 
@@ -587,33 +595,57 @@ if page == "⚙️ 환산비 관리":
 
     # 신규 추가
     with st.expander("➕ 새 품목 추가", expanded=True):
-        c1, c2, c3, c4 = st.columns([2, 3, 1, 1])
-        new_code  = c1.text_input("품목 코드", placeholder="예: NA603095")
-        new_desc  = c2.text_input("품목명/설명", placeholder="예: 새찬 오이피클 80g (1BOX=168EA)")
-        new_factor = c3.number_input("환산배수", min_value=1, value=1, step=1)
-        c4.markdown("<br>", unsafe_allow_html=True)
-        add_btn = c4.button("추가", use_container_width=True)
+        r1c1, r1c2, r1c3, r1c4, r1c5, r1c6 = st.columns([2, 2, 2, 3, 1, 1])
+        new_vendor = r1c1.text_input("벤더사", placeholder="예: 새찬")
+        new_급식   = r1c2.text_input("급식코드", placeholder="예: 1000464464")
+        new_erp    = r1c3.text_input("ERP코드",  placeholder="예: NA603095")
+        new_name   = r1c4.text_input("품목명",   placeholder="예: 새찬 오이피클 80g (1BOX=168EA)")
+        new_factor = r1c5.number_input("환산배수", min_value=1, value=1, step=1)
+        r1c6.markdown("<br>", unsafe_allow_html=True)
+        add_btn = r1c6.button("추가", use_container_width=True)
         if add_btn:
-            if not new_code.strip():
-                st.error("품목 코드를 입력해주세요.")
-            elif new_code.strip() in unit_data:
-                st.warning(f"이미 등록된 코드입니다: {new_code.strip()}")
+            급식_key = new_급식.strip()
+            erp_key  = new_erp.strip()
+            if not 급식_key and not erp_key:
+                st.error("급식코드 또는 ERP코드 중 하나 이상 입력해주세요.")
             else:
-                unit_data[new_code.strip()] = (int(new_factor), new_desc.strip())
-                save_unit_config(unit_data)
-                UNIT_DIFF_NORMAL.update(unit_data)
-                st.success(f"추가됨: {new_code.strip()}")
-                st.rerun()
+                added = []
+                val = (int(new_factor), new_name.strip(), new_vendor.strip(), 급식_key, erp_key)
+                for key in [erp_key, 급식_key]:
+                    if not key: continue
+                    if key in unit_data:
+                        st.warning(f"이미 등록된 코드입니다: {key}")
+                    else:
+                        unit_data[key] = val
+                        added.append(key)
+                if added:
+                    save_unit_config(unit_data)
+                    UNIT_DIFF_NORMAL.update(unit_data)
+                    st.success(f"추가됨: {', '.join(added)}")
+                    st.rerun()
 
     st.markdown("")
     st.markdown(f"##### 등록된 품목 ({len(unit_data)}건)")
 
-    for code, (factor, desc) in list(unit_data.items()):
-        c1, c2, c3, c4 = st.columns([2, 4, 1, 1])
-        c1.code(code)
-        c2.write(desc)
-        c3.write(f"×{factor}")
-        del_btn = c4.button("삭제", key=f"del_{code}")
+    # 헤더
+    hc1,hc2,hc3,hc4,hc5,hc6 = st.columns([2,2,2,3,1,1])
+    hc1.markdown("**벤더사**"); hc2.markdown("**급식코드**"); hc3.markdown("**ERP코드**")
+    hc4.markdown("**품목명**"); hc5.markdown("**환산배수**"); hc6.markdown("")
+    st.divider()
+
+    for code, info in list(unit_data.items()):
+        factor  = info[0]
+        name    = info[1] if len(info) > 1 else ""
+        vendor  = info[2] if len(info) > 2 else ""
+        급식코드 = info[3] if len(info) > 3 else ""
+        erp코드  = info[4] if len(info) > 4 else ""
+        c1,c2,c3,c4,c5,c6 = st.columns([2,2,2,3,1,1])
+        c1.write(vendor or "-")
+        c2.code(급식코드 or "-")
+        c3.code(erp코드 or "-")
+        c4.write(name or "-")
+        c5.write(f"×{factor}")
+        del_btn = c6.button("삭제", key=f"del_{code}")
         if del_btn:
             del unit_data[code]
             save_unit_config(unit_data)
