@@ -220,7 +220,7 @@ def split_prework(matched, qty_diff, lbl_only, cat_only, prework_codes, lbl_col)
                 lbl_qty = row.get(lbl_col) or 0
                 r["보정후차이"] = lbl_qty - r["보정후"]
                 pre.append(r)
-            else: normal.append(r)
+            else: normal.append(row)
         return pre, normal
     pm,m = _split(matched); pd,d = _split(qty_diff)
     pl,l = _split(lbl_only); pc,c = _split(cat_only)
