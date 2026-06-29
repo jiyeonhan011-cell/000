@@ -28,12 +28,11 @@ BORDER_STYLE = Border(
 )
 
 def clean_code(v):
-    return re.sub(u'[​‌‍﻿ ]', '', str(v or '')).strip()
+    return re.sub(u'[​‌‍﻿ ]', '', str(v or '')).strip()
 
 
 
 # 파일 간 단위가 달라 수량이 다르게 보이는 품목 — 환산비 적용 후 일치하면 "단위다름(정상)"
-# {코드: (환산배수, 설명)}  — 한 쪽 수량 * 배수 ≈ 다른 쪽 수량이면 정상
 # 값 형식: (환산배수, 품목명, 벤더사, 급식코드, ERP코드)
 _UNIT_DIFF_DEFAULT = {
     "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "", "1000464464", "NA603095"),
@@ -221,7 +220,7 @@ def split_prework(matched, qty_diff, lbl_only, cat_only, prework_codes, lbl_col)
                 lbl_qty = row.get(lbl_col) or 0
                 r["보정후차이"] = lbl_qty - r["보정후"]
                 pre.append(r)
-            else: normal.append(row)
+            else: normal.append(r)
         return pre, normal
     pm,m = _split(matched); pd,d = _split(qty_diff)
     pl,l = _split(lbl_only); pc,c = _split(cat_only)
