@@ -1,4 +1,4 @@
-# 창고이동 검수 설치 스크립트
+﻿# 창고이동 검수 설치 스크립트
 $AppName    = "창고이동검수"
 $InstallDir = "$env:LOCALAPPDATA\$AppName"
 $GithubBase = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
