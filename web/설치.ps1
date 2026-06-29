@@ -45,18 +45,16 @@ Write-Host "      완료" -ForegroundColor Green
 
 # 자동업데이트 + 실행 VBScript 생성 (콘솔 창 없이 실행)
 $launchVbs = @"
-Dim WshShell, pyCmd
+Dim WshShell
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = "$($InstallDir -replace '\\','\\')"
+WshShell.CurrentDirectory = "$($InstallDir -replace '\\','\\\\')"
 
 ' 최신 버전 자동 다운로드 (숨김)
-WshShell.Run "cmd /c curl -L -o app.py ""$GithubBase/app.py"" 2>nul", 0, True
-WshShell.Run "cmd /c curl -L -o .streamlit\config.toml ""$GithubBase/.streamlit/config.toml"" 2>nul", 0, True
+WshShell.Run "cmd /c curl -L -o app.py \"$GithubBase/app.py\" 2>nul", 0, True
+WshShell.Run "cmd /c curl -L -o .streamlit\\config.toml \"$GithubBase/.streamlit/config.toml\" 2>nul", 0, True
 
 ' Streamlit 실행
-Dim cmd
-cmd = "cmd /c """ & "$($pyExe -replace '\\','\\')" & """ -m streamlit run app.py --server.headless false --browser.gatherUsageStats false"
-WshShell.Run cmd, 0
+WshShell.Run "cmd /c \"$($pyExe -replace '\\','\\\\')\" -m streamlit run app.py --server.headless false --browser.gatherUsageStats false", 0
 "@
 $launchVbs | Out-File -Encoding ASCII "$InstallDir\실행.vbs"
 
@@ -65,11 +63,11 @@ $WshShell = New-Object -ComObject WScript.Shell
 
 function New-Shortcut($path) {
     $sc = $WshShell.CreateShortcut($path)
-    $sc.TargetPath      = "wscript.exe"
-    $sc.Arguments       = "`"$InstallDir\실행.vbs`""
+    $sc.TargetPath       = "wscript.exe"
+    $sc.Arguments        = "`"$InstallDir\실행.vbs`""
     $sc.WorkingDirectory = $InstallDir
-    $sc.IconLocation    = "shell32.dll,20"
-    $sc.Description     = "창고이동 검수 시스템"
+    $sc.IconLocation     = "shell32.dll,20"
+    $sc.Description      = "창고이동 검수 시스템"
     $sc.Save()
 }
 
