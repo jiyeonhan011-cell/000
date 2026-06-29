@@ -1,4 +1,4 @@
-﻿﻿# 창고이동 검수 설치 스크립트
+﻿﻿﻿# 창고이동 검수 설치 스크립트
 $AppName    = "WMSInspect"
 $InstallDir = "$env:LOCALAPPDATA\$AppName"
 $GithubBase = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
@@ -49,7 +49,7 @@ $dir = $InstallDir -replace '\\', '\\'
 $vbs = @"
 Set sh = CreateObject("WScript.Shell")
 sh.CurrentDirectory = "$dir"
-sh.Run "cmd /c curl -L -o app.py ""$GithubBase/app.py"" 2>nul && curl -L -o .streamlit\config.toml ""$GithubBase/.streamlit/config.toml"" 2>nul", 0, True
+sh.Run "cmd /c curl -L -o app.py ""$GithubBase/app.py"" 2>nul && curl -L -o icon.ico ""$GithubBase/icon.ico"" 2>nul && curl -L -o .streamlit\config.toml ""$GithubBase/.streamlit/config.toml"" 2>nul", 0, True
 sh.Run "cmd /c ""$py"" launcher.py", 0
 "@
 $vbs | Out-File -Encoding Unicode "$InstallDir\run.vbs"
