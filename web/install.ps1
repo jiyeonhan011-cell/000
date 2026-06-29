@@ -3,9 +3,9 @@ $AppName    = "창고이동검수"
 $InstallDir = "$env:LOCALAPPDATA\$AppName"
 $GithubBase = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
 
-Write-Host "=====================================" -ForegroundColor Cyan
-Write-Host "  창고이동 검수 시스템 설치" -ForegroundColor Cyan
-Write-Host "=====================================" -ForegroundColor Cyan
+Write-Host "====================================="  -ForegroundColor Cyan
+Write-Host "  창고이동 검수 시스템 설치"            -ForegroundColor Cyan
+Write-Host "====================================="  -ForegroundColor Cyan
 Write-Host ""
 
 # Python 확인
@@ -42,8 +42,8 @@ Write-Host "[4/5] 패키지 설치 중 (streamlit xlrd openpyxl pywebview)..." -
 & $pyExe -m pip install streamlit xlrd openpyxl pywebview -q
 Write-Host "      완료" -ForegroundColor Green
 
-# VBScript 런처 생성 (콘솔 창 없이 실행)
-$py = $pyExe -replace '\\', '\\'
+# VBScript 런처 생성
+$py  = $pyExe    -replace '\\', '\\'
 $dir = $InstallDir -replace '\\', '\\'
 $vbs = @"
 Set sh = CreateObject("WScript.Shell")
@@ -71,11 +71,11 @@ Make-Shortcut "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\창고이동 �
 
 Write-Host "[5/5] 바로가기 생성 완료" -ForegroundColor Green
 Write-Host ""
-Write-Host "=====================================" -ForegroundColor Cyan
-Write-Host "  설치 완료!" -ForegroundColor Green
-Write-Host "=====================================" -ForegroundColor Cyan
+Write-Host "====================================="  -ForegroundColor Cyan
+Write-Host "  설치 완료!"                           -ForegroundColor Green
+Write-Host "====================================="  -ForegroundColor Cyan
 Write-Host ""
 Write-Host "바탕화면의 '창고이동 검수' 아이콘을 더블클릭하면" -ForegroundColor White
-Write-Host "브라우저 없이 자체 창으로 실행됩니다." -ForegroundColor White
+Write-Host "브라우저 없이 자체 창으로 실행됩니다."           -ForegroundColor White
 Write-Host ""
 Read-Host "엔터를 눌러 닫기"
