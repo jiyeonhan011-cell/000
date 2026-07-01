@@ -599,37 +599,47 @@ if page == "⚙️ 환산비 관리":
 
     unit_data = load_unit_config()
 
-    # 신규 추가 — 업로드된 파일에서 실제 벤더사 목록을 읽어옴
-    def _read_vendors_from_files():
+    # 신규 추가 — 업로드된 파일에서 실제 벤더사 목록을 읽어옴 (파일별 캐시)
+    @st.cache_data(show_spinner="파일에서 벤더사 목록 읽는 중...")
+    def _read_vendors_from_files(wh_path, lbl_path, cat_path, _mtimes):
         vendors = set()
         try:
             if wh_path:
                 wb = xlrd.open_workbook(wh_path)
                 ws = wb.sheet_by_index(0)
-                for i in range(1, ws.nrows):
-                    if ws.ncols > 21:
+                if ws.ncols > 21:
+                    for i in range(1, ws.nrows):
                         v = str(ws.cell_value(i, 21)).strip()
                         if v: vendors.add(v)
         except Exception: pass
         try:
             if lbl_path:
-                wb = openpyxl.load_workbook(lbl_path, read_only=True)
+                wb = openpyxl.load_workbook(lbl_path, read_only=True, data_only=True)
                 ws = wb.active
-                for i in range(2, ws.max_row + 1):
-                    v = str(ws.cell(i, 8).value or '').strip()
+                for row in ws.iter_rows(min_row=2, min_col=8, max_col=8, values_only=True):
+                    v = str(row[0] or '').strip()
                     if v: vendors.add(v)
+                wb.close()
         except Exception: pass
         try:
             if cat_path:
-                wb = openpyxl.load_workbook(cat_path, read_only=True)
+                wb = openpyxl.load_workbook(cat_path, read_only=True, data_only=True)
                 ws = wb.active
-                for i in range(4, ws.max_row + 1):
-                    v = str(ws.cell(i, 5).value or '').strip()
+                for row in ws.iter_rows(min_row=4, min_col=5, max_col=5, values_only=True):
+                    v = str(row[0] or '').strip()
                     if v: vendors.add(v)
+                wb.close()
         except Exception: pass
         return vendors
 
-    existing_vendors = sorted(_read_vendors_from_files())
+    _mtimes = tuple(
+        os.path.getmtime(p) for p in (wh_path, lbl_path, cat_path) if p
+    )
+    try:
+        existing_vendors = sorted(_read_vendors_from_files(wh_path, lbl_path, cat_path, _mtimes))
+    except Exception as e:
+        st.warning(f"벤더사 목록을 읽는 중 오류가 발생했습니다: {e}")
+        existing_vendors = []
     with st.expander("➕ 새 품목 추가", expanded=True):
         r1c1, r1c2, r1c3, r1c4, r1c5, r1c6 = st.columns([2, 2, 2, 3, 1, 1])
         vendor_options = ["직접 입력"] + existing_vendors
