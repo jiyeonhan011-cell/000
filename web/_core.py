@@ -1,6 +1,26 @@
 import sys, os, threading, time, subprocess, pathlib
 import webview
 
+def set_window_icon(title, ico_path):
+    """Windows 작업표시줄 + 창 아이콘 설정"""
+    try:
+        import ctypes
+        u = ctypes.windll.user32
+        for _ in range(20):          # 창이 뜰 때까지 최대 2초 대기
+            hwnd = u.FindWindowW(None, title)
+            if hwnd: break
+            time.sleep(0.1)
+        if not hwnd: return
+        LR_LOADFROMFILE = 0x10
+        IMAGE_ICON = 1
+        hicon_big  = u.LoadImageW(None, ico_path, IMAGE_ICON, 256, 256, LR_LOADFROMFILE)
+        hicon_small= u.LoadImageW(None, ico_path, IMAGE_ICON,  16,  16, LR_LOADFROMFILE)
+        WM_SETICON = 0x0080
+        u.SendMessageW(hwnd, WM_SETICON, 1, hicon_big)   # ICON_BIG
+        u.SendMessageW(hwnd, WM_SETICON, 0, hicon_small)  # ICON_SMALL
+    except Exception:
+        pass
+
 PORT = 8501
 URL  = f"http://localhost:{PORT}"
 BASE = pathlib.Path(__file__).parent
@@ -88,5 +108,7 @@ window = webview.create_window(
     text_select=True,
 )
 
+ico_path = str(BASE / "icon.ico")
+threading.Thread(target=set_window_icon, args=("창고이동 검수 시스템", ico_path), daemon=True).start()
 threading.Thread(target=wait_and_open, daemon=True).start()
 webview.start()
