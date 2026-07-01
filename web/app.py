@@ -704,19 +704,7 @@ if run_btn:
             C,D   = result["cols"]["C"], result["cols"]["D"]
             D_CMP = result["cols"]["D_CMP"]
 
-            # 벤더사 필터
-            all_vendors = sorted({
-                r.get("벤더사","") for grp in rows.values() for r in grp
-                if r.get("벤더사","")
-            })
-            vendor_filter = st.selectbox(
-                "🏭 벤더사 필터",
-                options=["전체"] + all_vendors,
-                index=0,
-            )
-            def vf(row_list):
-                if vendor_filter == "전체": return row_list
-                return [r for r in row_list if r.get("벤더사","") == vendor_filter]
+            def vf(row_list): return row_list
 
             total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
             total_normal = result["s1_matched"] + result["s1_box"] + result["s1_unit"] + result["s2_matched"] + result["s2_pre"] + result["s2_box"] + result["s2_unit"]
@@ -745,29 +733,23 @@ if run_btn:
             st.markdown(f'<div class="section-header">🚨 확인 필요 항목 ({issue_cnt}건)</div>', unsafe_allow_html=True)
 
             if rows["s1_diff"]:
-                filtered = vf(rows["s1_diff"])
-                with st.expander(f"이동처리 ↔ 라벨발행 수량불일치 ({len(filtered)}건)", expanded=True):
-                    st.dataframe(to_df(filtered, [A,B]), use_container_width=True, hide_index=True)
+                with st.expander(f"이동처리 ↔ 라벨발행 수량불일치 ({result['s1_diff']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s1_diff"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_wh"]:
-                filtered = vf(rows["s1_wh"])
-                with st.expander(f"이동처리에만 있는 품목 ({len(filtered)}건)", expanded=True):
-                    st.dataframe(to_df(filtered, [A,B]), use_container_width=True, hide_index=True)
+                with st.expander(f"이동처리에만 있는 품목 ({result['s1_wh']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s1_wh"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_lbl"]:
-                filtered = vf(rows["s1_lbl"])
-                with st.expander(f"라벨발행에만 있는 품목 ({len(filtered)}건)", expanded=True):
-                    st.dataframe(to_df(filtered, [A,B]), use_container_width=True, hide_index=True)
+                with st.expander(f"라벨발행에만 있는 품목 ({result['s1_lbl']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s1_lbl"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s2_diff"]:
-                filtered = vf(rows["s2_diff"])
-                with st.expander(f"라벨발행 ↔ 작업내역 수량불일치 ({len(filtered)}건)", expanded=True):
-                    st.dataframe(to_df(filtered, [C,D]), use_container_width=True, hide_index=True)
+                with st.expander(f"라벨발행 ↔ 작업내역 수량불일치 ({result['s2_diff']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s2_diff"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_lbl"]:
-                filtered = vf(rows["s2_lbl"])
-                with st.expander(f"라벨발행에만 있는 품목 ({len(filtered)}건)", expanded=True):
-                    st.dataframe(to_df(filtered, [C,D]), use_container_width=True, hide_index=True)
+                with st.expander(f"라벨발행에만 있는 품목 ({result['s2_lbl']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s2_lbl"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_cat"]:
-                filtered = vf(rows["s2_cat"])
-                with st.expander(f"작업내역에만 있는 품목 ({len(filtered)}건)", expanded=True):
-                    st.dataframe(to_df(filtered, [C,D]), use_container_width=True, hide_index=True)
+                with st.expander(f"작업내역에만 있는 품목 ({result['s2_cat']}건)", expanded=True):
+                    st.dataframe(to_df(rows["s2_cat"], [C,D]), use_container_width=True, hide_index=True)
             if issue_cnt == 0:
                 st.success("확인이 필요한 항목이 없습니다.")
 
@@ -777,42 +759,35 @@ if run_btn:
             st.markdown(f'<div class="section-header">✅ 정상 처리 항목 ({total_normal}건)</div>', unsafe_allow_html=True)
 
             if rows["s1_matched"]:
-                filtered = vf(rows["s1_matched"])
-                with st.expander(f"이동처리 ↔ 라벨발행 일치 ({len(filtered)}건)"):
-                    st.dataframe(to_df(filtered, [A,B]), use_container_width=True, hide_index=True)
+                with st.expander(f"이동처리 ↔ 라벨발행 일치 ({result['s1_matched']}건)"):
+                    st.dataframe(to_df(rows["s1_matched"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_unit"]:
-                filtered = vf(rows["s1_unit"])
-                with st.expander(f"단위다름(정상) — 이동처리 ↔ 라벨발행 ({len(filtered)}건)"):
+                with st.expander(f"단위다름(정상) — 이동처리 ↔ 라벨발행 ({result['s1_unit']}건)"):
                     st.caption("원본 수량이 달라 보이지만 환산 후 일치하는 품목입니다.")
-                    st.dataframe(to_df(filtered, [A,B]), use_container_width=True, hide_index=True)
+                    st.dataframe(to_df(rows["s1_unit"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s1_box"]:
-                filtered = vf(rows["s1_box"])
-                s1box_err = [r for r in filtered if abs(r.get("차이") or 0) > 0.001]
-                with st.expander(f"BOX/EA환산(정상) — 이동처리 ↔ 라벨발행 ({len(filtered)}건){' ⚠️ 수량 확인 필요 ' + str(len(s1box_err)) + '건' if s1box_err else ''}", expanded=bool(s1box_err)):
+                s1box_err = [r for r in rows["s1_box"] if abs(r.get("차이") or 0) > 0.001]
+                with st.expander(f"BOX/EA환산(정상) — 이동처리 ↔ 라벨발행 ({result['s1_box']}건){' ⚠️ 수량 확인 필요 ' + str(len(s1box_err)) + '건' if s1box_err else ''}", expanded=bool(s1box_err)):
                     if s1box_err:
                         st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
-                    st.dataframe(to_df(filtered, [A,B]), use_container_width=True, hide_index=True)
+                    st.dataframe(to_df(rows["s1_box"], [A,B]), use_container_width=True, hide_index=True)
             if rows["s2_matched"]:
-                filtered = vf(rows["s2_matched"])
-                with st.expander(f"라벨발행 ↔ 작업내역 일치 ({len(filtered)}건)"):
-                    st.dataframe(to_df(filtered, [C,D]), use_container_width=True, hide_index=True)
+                with st.expander(f"라벨발행 ↔ 작업내역 일치 ({result['s2_matched']}건)"):
+                    st.dataframe(to_df(rows["s2_matched"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_unit"]:
-                filtered = vf(rows["s2_unit"])
-                with st.expander(f"단위다름(정상) — 라벨발행 ↔ 작업내역 ({len(filtered)}건)"):
+                with st.expander(f"단위다름(정상) — 라벨발행 ↔ 작업내역 ({result['s2_unit']}건)"):
                     st.caption("원본 수량이 달라 보이지만 환산 후 일치하는 품목입니다.")
-                    st.dataframe(to_df(filtered, [C,D]), use_container_width=True, hide_index=True)
+                    st.dataframe(to_df(rows["s2_unit"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_box"]:
-                filtered = vf(rows["s2_box"])
-                s2box_err = [r for r in filtered if abs(r.get("차이") or 0) > 0.001]
-                with st.expander(f"BOX/EA환산(정상) — 라벨발행 ↔ 작업내역 ({len(filtered)}건){' ⚠️ 수량 확인 필요 ' + str(len(s2box_err)) + '건' if s2box_err else ''}", expanded=bool(s2box_err)):
+                s2box_err = [r for r in rows["s2_box"] if abs(r.get("차이") or 0) > 0.001]
+                with st.expander(f"BOX/EA환산(정상) — 라벨발행 ↔ 작업내역 ({result['s2_box']}건){' ⚠️ 수량 확인 필요 ' + str(len(s2box_err)) + '건' if s2box_err else ''}", expanded=bool(s2box_err)):
                     if s2box_err:
                         st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
-                    st.dataframe(to_df(filtered, [C,D]), use_container_width=True, hide_index=True)
+                    st.dataframe(to_df(rows["s2_box"], [C,D]), use_container_width=True, hide_index=True)
             if rows["s2_pre"]:
-                filtered = vf(rows["s2_pre"])
-                with st.expander(f"선작업(정상) ({len(filtered)}건)"):
+                with st.expander(f"선작업(정상) ({result['s2_pre']}건)"):
                     st.caption("보정후차이 = 라벨발행(I열) - 보정후 (0이면 선작업 반영 시 정상)")
-                    st.dataframe(to_df(filtered, [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
+                    st.dataframe(to_df(rows["s2_pre"], [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
                                  use_container_width=True, hide_index=True)
 
             st.markdown("---")
