@@ -629,10 +629,7 @@ if page == "⚙️ 환산비 관리":
         except Exception: pass
         return vendors
 
-    existing_vendors = sorted(
-        _read_vendors_from_files() |
-        {info[2] for info in unit_data.values() if len(info) > 2 and info[2]}
-    )
+    existing_vendors = sorted(_read_vendors_from_files())
     with st.expander("➕ 새 품목 추가", expanded=True):
         r1c1, r1c2, r1c3, r1c4, r1c5, r1c6 = st.columns([2, 2, 2, 3, 1, 1])
         vendor_options = ["직접 입력"] + existing_vendors
