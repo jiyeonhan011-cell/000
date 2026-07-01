@@ -597,9 +597,17 @@ if page == "⚙️ 환산비 관리":
     unit_data = load_unit_config()
 
     # 신규 추가
+    existing_vendors = sorted({
+        info[2] for info in unit_data.values() if len(info) > 2 and info[2]
+    })
     with st.expander("➕ 새 품목 추가", expanded=True):
         r1c1, r1c2, r1c3, r1c4, r1c5, r1c6 = st.columns([2, 2, 2, 3, 1, 1])
-        new_vendor = r1c1.text_input("벤더사", placeholder="예: 새찬")
+        vendor_options = ["직접 입력"] + existing_vendors
+        vendor_choice = r1c1.selectbox("벤더사", options=vendor_options)
+        if vendor_choice == "직접 입력":
+            new_vendor = r1c1.text_input("벤더사 입력", placeholder="예: 새찬", label_visibility="collapsed")
+        else:
+            new_vendor = vendor_choice
         new_급식   = r1c2.text_input("급식코드", placeholder="예: 1000464464")
         new_erp    = r1c3.text_input("ERP코드",  placeholder="예: NA603095")
         new_name   = r1c4.text_input("품목명",   placeholder="예: 새찬 오이피클 80g (1BOX=168EA)")
