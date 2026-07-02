@@ -607,8 +607,11 @@ if page == "⚙️ 환산비 관리":
             if wh_path:
                 wb = xlrd.open_workbook(wh_path)
                 ws = wb.sheet_by_index(0)
+                TARGET = "TCT 케이터링 이동처리"
                 if ws.ncols > 21:
                     for i in range(1, ws.nrows):
+                        note = str(ws.cell_value(i, 8))
+                        if TARGET not in note: continue
                         v = str(ws.cell_value(i, 21)).strip()
                         if v: vendors.add(v)
         except Exception: pass
