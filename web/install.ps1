@@ -1,4 +1,4 @@
-﻿﻿﻿﻿$AppName    = "WMSInspect"
+﻿﻿﻿﻿﻿$AppName    = "WMSInspect"
 $InstallDir = "$env:LOCALAPPDATA\$AppName"
 $GithubBase = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
 
@@ -42,13 +42,39 @@ Write-Host "[4/5] 패키지 설치 중 (streamlit xlrd openpyxl pywebview)..." -
 & $pyExe -m pip install streamlit xlrd openpyxl pywebview -q
 Write-Host "      완료" -ForegroundColor Green
 
-# VBScript 런처 생성
+# 업데이트 스크립트 생성 (PowerShell — curl보다 안정적, 실패 시 update.log에 기록)
+$update = @'
+$ErrorActionPreference = "Continue"
+$dir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $dir
+$base = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
+$log  = Join-Path $dir "update.log"
+"[$(Get-Date)] 업데이트 시작" | Out-File $log
+$files = @{
+    "app.py"                  = "$base/app.py"
+    "launcher.py"              = "$base/launcher.py"
+    "icon.ico"                 = "$base/icon.ico"
+    ".streamlit\config.toml"   = "$base/.streamlit/config.toml"
+}
+foreach ($f in $files.Keys) {
+    try {
+        Invoke-WebRequest -Uri $files[$f] -OutFile (Join-Path $dir $f) -UseBasicParsing -TimeoutSec 15
+        "  OK: $f" | Out-File $log -Append
+    } catch {
+        "  FAIL: $f - $($_.Exception.Message)" | Out-File $log -Append
+    }
+}
+"[$(Get-Date)] 업데이트 완료" | Out-File $log -Append
+'@
+$update | Out-File -Encoding UTF8 "$InstallDir\update.ps1"
+
+# VBScript 런처 생성 (업데이트 → 실행)
 $py  = $pyExe    -replace '\\', '\\'
 $dir = $InstallDir -replace '\\', '\\'
 $vbs = @"
 Set sh = CreateObject("WScript.Shell")
 sh.CurrentDirectory = "$dir"
-sh.Run "cmd /c curl -L -o app.py ""$GithubBase/app.py"" 2>nul && curl -L -o launcher.py ""$GithubBase/launcher.py"" 2>nul && curl -L -o icon.ico ""$GithubBase/icon.ico"" 2>nul && curl -L -o .streamlit\config.toml ""$GithubBase/.streamlit/config.toml"" 2>nul", 0, True
+sh.Run "powershell -ExecutionPolicy Bypass -File ""$dir\update.ps1""", 0, True
 sh.Run "cmd /c ""$py"" launcher.py", 0
 "@
 $vbs | Out-File -Encoding Unicode "$InstallDir\run.vbs"
