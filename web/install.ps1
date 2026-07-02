@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿$AppName    = "WMSInspect"
+﻿$AppName    = "WMSInspect"
 $InstallDir = "$env:LOCALAPPDATA\$AppName"
 $GithubBase = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
 
@@ -49,6 +49,7 @@ $dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $dir
 $base = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
 $log  = Join-Path $dir "update.log"
+New-Item -ItemType Directory -Force -Path (Join-Path $dir ".streamlit") | Out-Null
 "[$(Get-Date)] 업데이트 시작" | Out-File $log
 $files = @{
     "app.py"                  = "$base/app.py"
