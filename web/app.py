@@ -35,23 +35,28 @@ def clean_code(v):
 # 파일 간 단위가 달라 수량이 다르게 보이는 품목 — 환산비 적용 후 일치하면 "단위다름(정상)"
 # 값 형식: (환산배수, 품목명, 벤더사, 급식코드, ERP코드)
 _UNIT_DIFF_DEFAULT = {
-    "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "새찬",   "1000464464", "NA603095"),
-    "1000464464":  (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "새찬",   "1000464464", "NA603095"),
-    "153325":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "새찬",   "153325",      "NA603095"),
-    "482644":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "새찬",   "482644",      "NA603095"),
-    "NB701107":    (30,  "청수식품 맑은물 냉면육수 300g/동치미맛 (1BOX=30EA)", "청수식품", "", "NB701107"),
-    "NB706070":    (30,  "영미 동치미 냉면육수 310g (1BOX=30EA)",          "영미",   "", "NB706070"),
-    "NE101062":    (6,   "삼원 튀김스프링 회오리감자 700g/냉동 (1BOX=6PAK)", "삼원",  "", "NE101062"),
-    "NE101075":    (6,   "화영푸드 회오리감자 800g/냉동 (1BOX=6PAK)",      "화영푸드", "", "NE101075"),
-    "NH101013":    (10,  "푸드림 미니바 슈가스틱 (1BOX=10EA)",             "푸드림", "", "NH101013"),
-    "NH512021":    (10,  "식예원 가쓰오맛 후리가께 50g (1PAC=10EA)",       "식예원", "", "NH512021"),
-    "NH610019":    (20,  "신진 신화당 50g (1PAK=20EA)",                    "신진",   "", "NH610019"),
-    "NI307040":    (24,  "진로 하이트제로 350ml/무알콜 (1BOX=24EA)",       "진로",   "", "NI307040"),
-    "NI309007":    (12,  "랭거스 망고쥬스 449ml (1BOX=12EA)",              "랭거스", "", "NI309007"),
-    "NL102043":    (2,   "유진 카사바칩 1.2kg (1BOX=2EA)",                 "유진",   "", "NL102043"),
+    "NA603095":    (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "",         "1000464464", "NA603095"),
+    "1000464464":  (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "웰스토리",  "1000464464", "NA603095"),
+    "153325":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "동원홈푸드", "153325",      "NA603095"),
+    "482644":      (168, "새찬 오이피클 일회용/중국산 80g (1BOX=168EA)",  "프레시웨이", "482644",      "NA603095"),
+    "NB701107":    (30,  "청수식품 맑은물 냉면육수 300g/동치미맛 (1BOX=30EA)", "동원홈푸드", "", "NB701107"),
+    "NB706070":    (30,  "영미 동치미 냉면육수 310g (1BOX=30EA)",          "웰스토리",  "", "NB706070"),
+    "NE101062":    (6,   "삼원 튀김스프링 회오리감자 700g/냉동 (1BOX=6PAK)", "아워홈",  "", "NE101062"),
+    "NE101075":    (6,   "화영푸드 회오리감자 800g/냉동 (1BOX=6PAK)",      "프레시웨이", "", "NE101075"),
+    "NH101013":    (10,  "푸드림 미니바 슈가스틱 (1BOX=10EA)",             "웰스토리",  "", "NH101013"),
+    "NH512021":    (10,  "식예원 가쓰오맛 후리가께 50g (1PAC=10EA)",       "웰스토리",  "", "NH512021"),
+    "NH610019":    (20,  "신진 신화당 50g (1PAK=20EA)",                    "동원홈푸드", "", "NH610019"),
+    "NI307040":    (24,  "진로 하이트제로 350ml/무알콜 (1BOX=24EA)",       "동원홈푸드", "", "NI307040"),
+    "NI309007":    (12,  "랭거스 망고쥬스 449ml (1BOX=12EA)",              "현대 그린푸드", "", "NI309007"),
+    "NL102043":    (2,   "유진 카사바칩 1.2kg (1BOX=2EA)",                 "현대 그린푸드", "", "NL102043"),
 }
 
 UNIT_FILE = Path(__file__).parent / "unit_config.json"
+
+_OLD_MANUFACTURER_VENDORS = {
+    "새찬", "청수식품", "영미", "삼원", "화영푸드",
+    "푸드림", "식예원", "신진", "진로", "랭거스", "유진",
+}
 
 def load_unit_config():
     import json
@@ -64,9 +69,10 @@ def load_unit_config():
                 # 구형 형식 (factor, desc) → (factor, 품목명, 벤더사, 급식코드, ERP코드)
                 if len(t) == 2:
                     t = (t[0], t[1], "", "", "")
-                # 벤더사가 비어있으면 기본값에서 채움
-                if len(t) > 2 and not t[2] and k in _UNIT_DIFF_DEFAULT:
-                    t = (t[0], t[1], _UNIT_DIFF_DEFAULT[k][2], t[3], t[4])
+                if len(t) > 2 and k in _UNIT_DIFF_DEFAULT:
+                    # 벤더사가 비어있거나, 과거 제조사명이 잘못 들어간 경우 실제 급식사로 교정
+                    if not t[2] or t[2] in _OLD_MANUFACTURER_VENDORS:
+                        t = (t[0], t[1], _UNIT_DIFF_DEFAULT[k][2], t[3], t[4])
                 result[k] = t
             return result
         except: pass
@@ -654,10 +660,15 @@ if page == "⚙️ 환산비 관리":
     st.markdown(f"##### 등록된 품목 ({len(unit_data)}건)")
 
     # 헤더
-    hc1,hc2,hc3,hc4,hc5,hc6 = st.columns([2,2,2,3,1,1])
+    hc1,hc2,hc3,hc4,hc5,hc6,hc7 = st.columns([2,2,2,3,1,1,1])
     hc1.markdown("**적용 급식사**"); hc2.markdown("**급식코드**"); hc3.markdown("**ERP코드**")
-    hc4.markdown("**품목명**"); hc5.markdown("**환산배수**"); hc6.markdown("")
+    hc4.markdown("**품목명**"); hc5.markdown("**환산배수**"); hc6.markdown(""); hc7.markdown("")
     st.divider()
+
+    if "editing_code" not in st.session_state:
+        st.session_state.editing_code = None
+
+    edit_vendor_options = ["전체 공통"] + VENDOR_LIST + ["직접 입력"]
 
     for code, info in list(unit_data.items()):
         factor  = info[0]
@@ -665,20 +676,56 @@ if page == "⚙️ 환산비 관리":
         vendor  = info[2] if len(info) > 2 else ""
         급식코드 = info[3] if len(info) > 3 else ""
         erp코드  = info[4] if len(info) > 4 else ""
-        c1,c2,c3,c4,c5,c6 = st.columns([2,2,2,3,1,1])
-        c1.write(vendor or "전체 공통")
-        c2.code(급식코드 or "-")
-        c3.code(erp코드 or "-")
-        c4.write(name or "-")
-        c5.write(f"×{factor}")
-        del_btn = c6.button("삭제", key=f"del_{code}")
-        if del_btn:
-            del unit_data[code]
-            save_unit_config(unit_data)
-            UNIT_DIFF_NORMAL.clear()
-            UNIT_DIFF_NORMAL.update(unit_data)
-            st.success(f"삭제됨: {code}")
-            st.rerun()
+
+        if st.session_state.editing_code == code:
+            with st.container(border=True):
+                ec1, ec2, ec3, ec4, ec5 = st.columns([2, 3, 1, 1, 1])
+                default_idx = VENDOR_LIST.index(vendor) + 1 if vendor in VENDOR_LIST else (len(VENDOR_LIST)+1 if vendor else 0)
+                ev_choice = ec1.selectbox("적용 급식사", options=edit_vendor_options, index=default_idx, key=f"ev_{code}")
+                if ev_choice == "직접 입력":
+                    ev_vendor = ec1.text_input("급식사 입력", value=vendor if vendor not in VENDOR_LIST else "", key=f"evt_{code}", label_visibility="collapsed")
+                elif ev_choice == "전체 공통":
+                    ev_vendor = ""
+                else:
+                    ev_vendor = ev_choice
+                ev_name   = ec2.text_input("품목명", value=name, key=f"en_{code}")
+                ev_factor = ec3.number_input("환산배수", min_value=1, value=int(factor), step=1, key=f"ef_{code}")
+                ec4.markdown("<br>", unsafe_allow_html=True)
+                save_clicked = ec4.button("저장", key=f"save_{code}", use_container_width=True)
+                ec5.markdown("<br>", unsafe_allow_html=True)
+                cancel_clicked = ec5.button("취소", key=f"cancel_{code}", use_container_width=True)
+                if save_clicked:
+                    new_val = (int(ev_factor), ev_name.strip(), ev_vendor.strip(), 급식코드, erp코드)
+                    new_key = f"{급식코드 or erp코드}::{ev_vendor.strip()}" if ev_vendor.strip() else (급식코드 or erp코드)
+                    if new_key != code:
+                        del unit_data[code]
+                    unit_data[new_key] = new_val
+                    save_unit_config(unit_data)
+                    UNIT_DIFF_NORMAL.clear()
+                    UNIT_DIFF_NORMAL.update(unit_data)
+                    st.session_state.editing_code = None
+                    st.success("수정됨")
+                    st.rerun()
+                if cancel_clicked:
+                    st.session_state.editing_code = None
+                    st.rerun()
+        else:
+            c1,c2,c3,c4,c5,c6,c7 = st.columns([2,2,2,3,1,1,1])
+            c1.write(vendor or "전체 공통")
+            c2.code(급식코드 or "-")
+            c3.code(erp코드 or "-")
+            c4.write(name or "-")
+            c5.write(f"×{factor}")
+            if c6.button("수정", key=f"edit_{code}"):
+                st.session_state.editing_code = code
+                st.rerun()
+            if c7.button("삭제", key=f"del_{code}"):
+                del unit_data[code]
+                save_unit_config(unit_data)
+                UNIT_DIFF_NORMAL.clear()
+                UNIT_DIFF_NORMAL.update(unit_data)
+                st.success(f"삭제됨: {code}")
+                st.rerun()
 
     st.stop()
 
