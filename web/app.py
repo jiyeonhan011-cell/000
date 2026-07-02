@@ -78,9 +78,16 @@ def save_unit_config(data):
 
 UNIT_DIFF_NORMAL = load_unit_config()
 
+def _unit_diff_lookup(code, vendor=""):
+    """벤더사별 등록이 있으면 우선 적용, 없으면 코드 공통 등록을 사용"""
+    if vendor:
+        info = UNIT_DIFF_NORMAL.get(f"{code}::{vendor}")
+        if info: return info
+    return UNIT_DIFF_NORMAL.get(code)
+
 def _unit_diff_ok(row, col_a, col_b):
     """환산비 적용 후 두 수량이 일치하는지 확인"""
-    info = UNIT_DIFF_NORMAL.get(row["코드"])
+    info = _unit_diff_lookup(row["코드"], row.get("벤더사",""))
     if not info: return False
     factor = info[0]
     a = row.get(col_a) or 0
@@ -114,10 +121,11 @@ def load_warehouse(path):
 
 BOX_UNITS = {'BOX','PAC','PAK','B','박스'}
 
-def _to_ea(qty, 단위, code):
-    """단위가 BOX계열이고 환산배수가 등록된 품목이면 EA로 환산"""
-    if 단위.upper() in BOX_UNITS and code in UNIT_DIFF_NORMAL:
-        return qty * UNIT_DIFF_NORMAL[code][0]
+def _to_ea(qty, 단위, code, vendor=""):
+    """단위가 BOX계열이고 환산배수가 등록된 품목이면 EA로 환산 (벤더사별 등록 우선)"""
+    info = _unit_diff_lookup(code, vendor)
+    if 단위.upper() in BOX_UNITS and info:
+        return qty * info[0]
     return qty
 
 def load_label(path):
@@ -140,13 +148,13 @@ def load_label(path):
         규격     = str(ws.cell(i,11).value or '').strip()
         급코드   = clean_code(ws.cell(i,12).value)
         erp코드  = str(ws.cell(i,13).value or '').strip()
-        s1_qty[erp코드] += 출고수량                              # 원본 (합계 표시용)
-        s1_qty_cmp[erp코드] += _to_ea(출고수량, 단위, erp코드)  # 환산 (비교용)
         벤더사   = str(ws.cell(i,8).value  or '').strip()
+        s1_qty[erp코드] += 출고수량                                       # 원본 (합계 표시용)
+        s1_qty_cmp[erp코드] += _to_ea(출고수량, 단위, erp코드, 벤더사)  # 환산 (비교용)
         if erp코드 not in s1_info:
             s1_info[erp코드] = {"ERP코드":erp코드,"급품목코드":급코드,"제품명":제품명,"규격":규격,"단위":단위,"벤더사":벤더사}
         s2_qty[급코드] += 출고수량
-        s2_qty_cmp[급코드] += _to_ea(출고수량, 단위, 급코드)
+        s2_qty_cmp[급코드] += _to_ea(출고수량, 단위, 급코드, 벤더사)
         if 급코드 not in s2_info:
             s2_info[급코드] = {"급품목코드":급코드,"ERP코드":erp코드,"제품명":제품명,"규격":규격,"단위":단위,"벤더사":벤더사}
     return s1_qty, s1_qty_cmp, s1_info, s2_qty, s2_qty_cmp, s2_info, canceled
@@ -603,13 +611,15 @@ if page == "⚙️ 환산비 관리":
         "동원홈푸드", "딜리버리랩", "신세계", "아모제", "아워홈",
         "웰스토리", "푸드머스", "프레시웨이", "한화 푸디스트", "허브메카", "현대 그린푸드", "SPC",
     ]
-    existing_vendors = VENDOR_LIST
     with st.expander("➕ 새 품목 추가", expanded=True):
+        st.caption("같은 품목이라도 급식사마다 출고 단위(EA/BOX/PAK)가 다르면, 급식사를 지정해서 등록하세요. '전체 공통'은 급식사 구분 없이 적용됩니다.")
         r1c1, r1c2, r1c3, r1c4, r1c5, r1c6 = st.columns([2, 2, 2, 3, 1, 1])
-        vendor_options = ["직접 입력"] + existing_vendors
-        vendor_choice = r1c1.selectbox("벤더사", options=vendor_options)
+        vendor_options = ["전체 공통"] + VENDOR_LIST + ["직접 입력"]
+        vendor_choice = r1c1.selectbox("적용 급식사", options=vendor_options)
         if vendor_choice == "직접 입력":
-            new_vendor = r1c1.text_input("벤더사 입력", placeholder="예: 새찬", label_visibility="collapsed")
+            new_vendor = r1c1.text_input("급식사 입력", placeholder="예: 새찬", label_visibility="collapsed")
+        elif vendor_choice == "전체 공통":
+            new_vendor = ""
         else:
             new_vendor = vendor_choice
         new_급식   = r1c2.text_input("급식코드", placeholder="예: 1000464464")
@@ -626,13 +636,14 @@ if page == "⚙️ 환산비 관리":
             else:
                 added = []
                 val = (int(new_factor), new_name.strip(), new_vendor.strip(), 급식_key, erp_key)
-                for key in [erp_key, 급식_key]:
-                    if not key: continue
-                    if key in unit_data:
-                        st.warning(f"이미 등록된 코드입니다: {key}")
+                for code in [erp_key, 급식_key]:
+                    if not code: continue
+                    store_key = f"{code}::{new_vendor.strip()}" if new_vendor.strip() else code
+                    if store_key in unit_data:
+                        st.warning(f"이미 등록된 코드입니다: {code}" + (f" ({new_vendor})" if new_vendor else ""))
                     else:
-                        unit_data[key] = val
-                        added.append(key)
+                        unit_data[store_key] = val
+                        added.append(code)
                 if added:
                     save_unit_config(unit_data)
                     UNIT_DIFF_NORMAL.update(unit_data)
@@ -644,7 +655,7 @@ if page == "⚙️ 환산비 관리":
 
     # 헤더
     hc1,hc2,hc3,hc4,hc5,hc6 = st.columns([2,2,2,3,1,1])
-    hc1.markdown("**벤더사**"); hc2.markdown("**급식코드**"); hc3.markdown("**ERP코드**")
+    hc1.markdown("**적용 급식사**"); hc2.markdown("**급식코드**"); hc3.markdown("**ERP코드**")
     hc4.markdown("**품목명**"); hc5.markdown("**환산배수**"); hc6.markdown("")
     st.divider()
 
@@ -655,7 +666,7 @@ if page == "⚙️ 환산비 관리":
         급식코드 = info[3] if len(info) > 3 else ""
         erp코드  = info[4] if len(info) > 4 else ""
         c1,c2,c3,c4,c5,c6 = st.columns([2,2,2,3,1,1])
-        c1.write(vendor or "-")
+        c1.write(vendor or "전체 공통")
         c2.code(급식코드 or "-")
         c3.code(erp코드 or "-")
         c4.write(name or "-")
