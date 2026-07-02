@@ -120,11 +120,11 @@ def _unit_diff_ok(row, col_a, col_b):
 def load_warehouse(path):
     wb  = xlrd.open_workbook(path)
     ws  = wb.sheet_by_index(0)
-    TARGETS = ("TCT 케이터링 이동처리", "TCT 케이터링 대체/감량")
+    TARGET = "TCT 케이터링 이동처리"
     qty_map, info_map, dates_map = defaultdict(float), {}, defaultdict(set)
     for i in range(1, ws.nrows):
         note = str(ws.cell_value(i, 8))
-        if not any(t in note for t in TARGETS): continue
+        if TARGET not in note: continue
         m    = re.search(r'\((\d{4}-\d{2}-\d{2})\)', note)
         date = m.group(1) if m else str(ws.cell_value(i, 3)).strip()
         erp  = str(ws.cell_value(i, 9)).strip()
