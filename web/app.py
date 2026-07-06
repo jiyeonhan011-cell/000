@@ -421,8 +421,8 @@ def run_inspection(wh_path, lbl_path, cat_path, pre_path, div2=True):
 
     for lst in (s1m, s1d, s1w, s1l, s1box, s1unit):
         add_converted(lst, ls1q_cmp, B, B_CMP, A)
-    for lst in (s2m, s2d, s2l, s2c, s2pre, s2box, s2unit):
-        add_converted(lst, ls2q_cmp, D, D_CMP, C)
+    # 2단계(라벨발행 ↔ 작업내역)는 작업내역 쪽에 별도 환산값이 없으므로
+    # 라벨발행 환산값(ls2q_cmp)을 "작업내역(환산)"으로 잘못 표시하지 않는다.
 
     def sumq(rows, col): return sum(r[col] for r in rows if isinstance(r.get(col), (int,float)))
     all_s1 = s1m+s1d+s1w+s1l+s1box+s1unit
