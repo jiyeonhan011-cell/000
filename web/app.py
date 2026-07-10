@@ -785,6 +785,45 @@ if run_btn:
 
             def vf(row_list): return row_list
 
+            def suggest_factor(row, col_a, col_b):
+                """규격 표기(예: 2kg*9ea) 또는 정수배 비율로 환산배수 추정"""
+                a = row.get(col_a) or 0
+                b = row.get(col_b) or 0
+                if a <= 0 or b <= 0: return None
+                규격 = str(row.get("규격") or "")
+                m = re.search(r'\*\s*(\d+)\s*(?:ea|EA|개)', 규격)
+                candidates = []
+                if m: candidates.append((int(m.group(1)), "규격 매칭"))
+                ratio = max(a, b) / min(a, b)
+                if abs(ratio - round(ratio)) < 0.02 and round(ratio) > 1:
+                    candidates.append((int(round(ratio)), "정수배 비율"))
+                for factor, reason in candidates:
+                    if abs(a * factor - b) < 0.5 or abs(b * factor - a) < 0.5:
+                        return factor, reason
+                return None
+
+            def render_unit_suggestion(row, col_a, col_b, code_field):
+                """수량불일치 행 아래 환산비 추천 + 원클릭 등록 UI"""
+                code = row.get("코드", "")
+                if not code or _unit_diff_lookup(code, row.get("벤더사", "")): return
+                found = suggest_factor(row, col_a, col_b)
+                if not found: return
+                factor, reason = found
+                sc1, sc2 = st.columns([5, 1])
+                sc1.caption(f"💡 **{row.get('품목명','')}** ({code}) — 환산배수 ×{factor} 추정 ({reason}). "
+                            f"실제 단위 차이가 맞는지 확인 후 등록하세요 (÷2 옵션 등 다른 원인일 수 있음)")
+                if sc2.button("등록", key=f"sugg_{code_field}_{code}"):
+                    unit_data = load_unit_config()
+                    val = (factor, row.get("품목명",""), row.get("벤더사",""),
+                           code if code_field == "급식" else "",
+                           code if code_field == "erp" else "")
+                    unit_data[code] = val
+                    save_unit_config(unit_data)
+                    UNIT_DIFF_NORMAL.clear()
+                    UNIT_DIFF_NORMAL.update(unit_data)
+                    st.success(f"환산비 등록됨: {code} ×{factor}")
+                    st.rerun()
+
             total_issue  = result["s1_wh"] + result["s1_lbl"] + result["s2_diff"] + result["s2_lbl"] + result["s2_cat"]
             total_normal = result["s1_matched"] + result["s1_box"] + result["s1_unit"] + result["s2_matched"] + result["s2_pre"] + result["s2_box"] + result["s2_unit"]
 
@@ -814,6 +853,8 @@ if run_btn:
             if rows["s1_diff"]:
                 with st.expander(f"이동처리 ↔ 라벨발행 수량불일치 ({result['s1_diff']}건)", expanded=True):
                     st.dataframe(to_df(rows["s1_diff"], [A,B]), use_container_width=True, hide_index=True)
+                    for r in rows["s1_diff"]:
+                        render_unit_suggestion(r, A, B, "erp")
             if rows["s1_wh"]:
                 with st.expander(f"이동처리에만 있는 품목 ({result['s1_wh']}건)", expanded=True):
                     st.dataframe(to_df(rows["s1_wh"], [A,B]), use_container_width=True, hide_index=True)
@@ -823,6 +864,8 @@ if run_btn:
             if rows["s2_diff"]:
                 with st.expander(f"라벨발행 ↔ 작업내역 수량불일치 ({result['s2_diff']}건)", expanded=True):
                     st.dataframe(to_df(rows["s2_diff"], [C,D]), use_container_width=True, hide_index=True)
+                    for r in rows["s2_diff"]:
+                        render_unit_suggestion(r, C, D, "급식")
             if rows["s2_lbl"]:
                 with st.expander(f"라벨발행에만 있는 품목 ({result['s2_lbl']}건)", expanded=True):
                     st.dataframe(to_df(rows["s2_lbl"], [C,D]), use_container_width=True, hide_index=True)
