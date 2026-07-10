@@ -622,24 +622,21 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("##### ⚙️ 검수 옵션")
-    auto_div2, detect_info = None, None
+    div2 = True
     if lbl_path and cat_path:
         try:
             _ls1q, _ls1qc, _ls1i, ls2q_probe, _ls2qc, _ls2i, _canc = load_label(lbl_path, os.path.getmtime(lbl_path))
             raw_cat_probe, _cat_i = load_catering(cat_path, os.path.getmtime(cat_path))
-            auto_div2, detect_info = detect_div2(ls2q_probe, raw_cat_probe)
+            div2, detect_info = detect_div2(ls2q_probe, raw_cat_probe)
             r1, r2 = detect_info["rate1"]*100, detect_info["rate2"]*100
             if detect_info["confident"]:
-                st.caption(f"🔎 자동 감지 — ÷2 안 함: {r1:.0f}% 일치 / ÷2 적용: {r2:.0f}% 일치 → "
-                           f"**{'÷2 적용' if auto_div2 else '÷2 안 함'}** (확실)")
+                st.caption(f"🔎 작업내역 ÷2 자동 판단 — 안 함: {r1:.0f}% 일치 / 적용: {r2:.0f}% 일치 → "
+                           f"**{'÷2 적용' if div2 else '÷2 안 함'}**")
             else:
-                st.warning(f"⚠️ 판단이 애매합니다 — ÷2 안 함: {r1:.0f}% / ÷2 적용: {r2:.0f}% 일치. "
-                           f"실제 이동 횟수를 직접 확인하고 체크박스를 설정하세요.")
+                st.warning(f"⚠️ 이동 횟수 판단이 애매합니다 — 안 함: {r1:.0f}% / 적용: {r2:.0f}% 일치. "
+                           f"검수 결과에서 확인 필요 항목이 유난히 많다면 파일을 다시 확인해주세요.")
         except Exception:
             pass
-    div2 = st.checkbox("작업내역 ÷2 적용",
-                        value=auto_div2 if auto_div2 is not None else True,
-                        help="자동 감지 결과를 기본값으로 사용합니다. 판단이 애매하면 직접 확인 후 설정하세요.")
 
     st.markdown("---")
     ready = bool(wh_path and lbl_path and cat_path)
