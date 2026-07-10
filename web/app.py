@@ -151,7 +151,8 @@ def _to_ea(qty, 단위, code, vendor=""):
         return qty * info[0]
     return qty
 
-def load_label(path):
+@st.cache_data(show_spinner=False)
+def load_label(path, _mtime):
     wb = openpyxl.load_workbook(path)
     ws = wb.active
     s1_qty, s1_qty_cmp = defaultdict(float), defaultdict(float)
@@ -182,7 +183,8 @@ def load_label(path):
             s2_info[급코드] = {"급품목코드":급코드,"ERP코드":erp코드,"제품명":제품명,"규격":규격,"단위":단위,"벤더사":벤더사}
     return s1_qty, s1_qty_cmp, s1_info, s2_qty, s2_qty_cmp, s2_info, canceled
 
-def load_catering(path):
+@st.cache_data(show_spinner=False)
+def load_catering(path, _mtime):
     wb = openpyxl.load_workbook(path)
     ws = wb.active
     qty_map, info_map = defaultdict(float), {}
@@ -204,6 +206,15 @@ def load_catering(path):
 
 def apply_catering_div(qty_map, div2):
     return {k: v/2 for k,v in qty_map.items()} if div2 else dict(qty_map)
+
+def detect_div2(ls2q, raw_cat_qty):
+    """작업내역 ÷2 여부를 수동 설정 없이, 라벨발행과 실제로 더 잘 맞는 쪽으로 자동 판단"""
+    def count_matches(cat_map):
+        return sum(1 for code in (set(ls2q) & set(cat_map))
+                   if abs(ls2q[code] - cat_map[code]) < 0.5)
+    m_div1 = count_matches(apply_catering_div(raw_cat_qty, False))
+    m_div2 = count_matches(apply_catering_div(raw_cat_qty, True))
+    return m_div2 > m_div1, m_div1, m_div2
 
 def load_prework(path):
     if not path or not os.path.exists(path): return {}, set()
@@ -307,8 +318,8 @@ def write_xl_sheet(wb, title, rows, hdr_bg, row_bg, col_a, col_b, show_date=True
 
 def run_inspection(wh_path, lbl_path, cat_path, pre_path, div2=True):
     wh_qty, wh_info = load_warehouse(wh_path)
-    ls1q, ls1q_cmp, ls1i, ls2q, ls2q_cmp, ls2i, canceled = load_label(lbl_path)
-    raw_cat_qty, cat_info = load_catering(cat_path)
+    ls1q, ls1q_cmp, ls1i, ls2q, ls2q_cmp, ls2i, canceled = load_label(lbl_path, os.path.getmtime(lbl_path))
+    raw_cat_qty, cat_info = load_catering(cat_path, os.path.getmtime(cat_path))
     cat_qty = apply_catering_div(raw_cat_qty, div2)
     cat_col = "작업내역(K÷2)" if div2 else "작업내역(K)"
     prework, box_ea_codes = load_prework(pre_path) if pre_path else ({}, set())
@@ -603,7 +614,18 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("##### ⚙️ 검수 옵션")
-    div2 = st.checkbox("작업내역 ÷2 적용", value=True, help="2번 이동 처리된 경우 체크, 1번이면 해제")
+    auto_div2, m1, m2 = None, 0, 0
+    if lbl_path and cat_path:
+        try:
+            _ls1q, _ls1qc, _ls1i, ls2q_probe, _ls2qc, _ls2i, _canc = load_label(lbl_path, os.path.getmtime(lbl_path))
+            raw_cat_probe, _cat_i = load_catering(cat_path, os.path.getmtime(cat_path))
+            auto_div2, m1, m2 = detect_div2(ls2q_probe, raw_cat_probe)
+            st.caption(f"🔎 자동 감지 — ÷2 안 함: {m1}건 일치 / ÷2 적용: {m2}건 일치 → **{'÷2 적용 권장' if auto_div2 else '÷2 안 함 권장'}**")
+        except Exception:
+            pass
+    div2 = st.checkbox("작업내역 ÷2 적용",
+                        value=auto_div2 if auto_div2 is not None else True,
+                        help="자동 감지 결과를 기본값으로 사용합니다. 필요시 직접 켜고 끌 수 있습니다.")
 
     st.markdown("---")
     ready = bool(wh_path and lbl_path and cat_path)
