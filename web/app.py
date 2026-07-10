@@ -914,40 +914,43 @@ if run_btn:
 
             st.markdown("---")
 
-            # ── 정상 처리 항목 ──
+            # ── 정상 처리 항목 (전부 한 표로) ──
             st.markdown(f'<div class="section-header">✅ 정상 처리 항목 ({total_normal}건)</div>', unsafe_allow_html=True)
 
-            if rows["s1_matched"]:
-                with st.expander(f"이동처리 ↔ 라벨발행 일치 ({result['s1_matched']}건)"):
-                    st.dataframe(to_df(rows["s1_matched"], [A,B]), use_container_width=True, hide_index=True)
-            if rows["s1_unit"]:
-                with st.expander(f"단위다름(정상) — 이동처리 ↔ 라벨발행 ({result['s1_unit']}건)"):
-                    st.caption("원본 수량이 달라 보이지만 환산 후 일치하는 품목입니다.")
-                    st.dataframe(to_df(rows["s1_unit"], [A,B]), use_container_width=True, hide_index=True)
-            if rows["s1_box"]:
-                s1box_err = [r for r in rows["s1_box"] if abs(r.get("차이") or 0) > 0.001]
-                with st.expander(f"BOX/EA환산(정상) — 이동처리 ↔ 라벨발행 ({result['s1_box']}건){' ⚠️ 수량 확인 필요 ' + str(len(s1box_err)) + '건' if s1box_err else ''}", expanded=bool(s1box_err)):
-                    if s1box_err:
-                        st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
-                    st.dataframe(to_df(rows["s1_box"], [A,B]), use_container_width=True, hide_index=True)
-            if rows["s2_matched"]:
-                with st.expander(f"라벨발행 ↔ 작업내역 일치 ({result['s2_matched']}건)"):
-                    st.dataframe(to_df(rows["s2_matched"], [C,D]), use_container_width=True, hide_index=True)
-            if rows["s2_unit"]:
-                with st.expander(f"단위다름(정상) — 라벨발행 ↔ 작업내역 ({result['s2_unit']}건)"):
-                    st.caption("원본 수량이 달라 보이지만 환산 후 일치하는 품목입니다.")
-                    st.dataframe(to_df(rows["s2_unit"], [C,D]), use_container_width=True, hide_index=True)
-            if rows["s2_box"]:
-                s2box_err = [r for r in rows["s2_box"] if abs(r.get("차이") or 0) > 0.001]
-                with st.expander(f"BOX/EA환산(정상) — 라벨발행 ↔ 작업내역 ({result['s2_box']}건){' ⚠️ 수량 확인 필요 ' + str(len(s2box_err)) + '건' if s2box_err else ''}", expanded=bool(s2box_err)):
-                    if s2box_err:
-                        st.warning("아래 항목은 차이가 있습니다. 환산 오류 여부를 확인해주세요.")
-                    st.dataframe(to_df(rows["s2_box"], [C,D]), use_container_width=True, hide_index=True)
-            if rows["s2_pre"]:
-                with st.expander(f"선작업(정상) ({result['s2_pre']}건)"):
-                    st.caption("보정후차이 = 라벨발행(I열) - 보정후 (0이면 선작업 반영 시 정상)")
-                    st.dataframe(to_df(rows["s2_pre"], [C,D], extra=["급식사","선작업qty","보정후","보정후차이"]),
-                                 use_container_width=True, hide_index=True)
+            def combine_normal(groups):
+                """(rows, 단계, 분류, col_a, col_b) 목록을 하나의 표로 합침"""
+                combined = []
+                for group_rows, stage, category, col_a, col_b in groups:
+                    for r in group_rows:
+                        cmp_a = col_a.replace("(I열)","(환산)").replace("(F열)","(환산)")
+                        cmp_b = col_b.replace("(I열)","(환산)").replace("(K÷2)","(환산)").replace("(K)","(환산)")
+                        combined.append({
+                            "단계": stage, "분류": category,
+                            "코드": r.get("코드","-"), "품목명": r.get("품목명","-"),
+                            "규격": r.get("규격","-"), "단위": r.get("단위","-"),
+                            "원본수량": r.get(col_a, "-"), "비교수량": r.get(col_b, "-"),
+                            "환산수량": r.get(cmp_a) or r.get(cmp_b) or "-",
+                            "차이": r.get("차이", 0),
+                        })
+                return combined
+
+            normal_rows = combine_normal([
+                (rows["s1_matched"], "STEP1", "일치",           A, B),
+                (rows["s1_unit"],    "STEP1", "단위다름(정상)",  A, B),
+                (rows["s1_box"],     "STEP1", "BOX/EA환산(정상)",A, B),
+                (rows["s2_matched"], "STEP2", "일치",           C, D),
+                (rows["s2_unit"],    "STEP2", "단위다름(정상)",  C, D),
+                (rows["s2_box"],     "STEP2", "BOX/EA환산(정상)",C, D),
+                (rows["s2_pre"],     "STEP2", "선작업(정상)",    C, D),
+            ])
+            if normal_rows:
+                normal_err = [r for r in normal_rows if abs(r.get("차이") or 0) > 0.001]
+                if normal_err:
+                    st.warning(f"⚠️ 정상 분류 중 {len(normal_err)}건은 그래도 차이가 남아있습니다. 환산 오류 여부를 확인해주세요.")
+                categories = ["전체"] + sorted({r["분류"] for r in normal_rows})
+                cat_filter = st.selectbox("분류 필터", categories, key="normal_cat_filter")
+                shown = normal_rows if cat_filter == "전체" else [r for r in normal_rows if r["분류"] == cat_filter]
+                st.dataframe(pd.DataFrame(shown), use_container_width=True, hide_index=True)
 
             st.markdown("---")
             st.download_button(
