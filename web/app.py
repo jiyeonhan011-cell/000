@@ -805,10 +805,14 @@ if run_btn:
                     cmp = c.replace("(I열)","(환산)").replace("(F열)","(환산)").replace("(K÷2)","(환산)").replace("(K)","(환산)")
                     if cmp != c and cmp in rows[0]:
                         qty_keys.append(cmp)
-                all_keys = base + [k for k in qty_keys if k in rows[0]] + ["차이"]
+                all_keys = ["상태"] + base + [k for k in qty_keys if k in rows[0]] + ["차이"]
                 if extra:
                     all_keys += [k for k in extra if k in rows[0]]
-                return pd.DataFrame([{k: r.get(k,"-") for k in all_keys} for r in rows])
+                def status(r):
+                    d = r.get("차이")
+                    if not isinstance(d, (int, float)): return "-"
+                    return "✅ 일치" if abs(d) < 0.001 else "❌ 불일치"
+                return pd.DataFrame([{**{k: r.get(k,"-") for k in all_keys}, "상태": status(r)} for r in rows])
 
             rows = result["rows"]
             A,B   = result["cols"]["A"], result["cols"]["B"]
