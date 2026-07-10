@@ -208,13 +208,21 @@ def apply_catering_div(qty_map, div2):
     return {k: v/2 for k,v in qty_map.items()} if div2 else dict(qty_map)
 
 def detect_div2(ls2q, raw_cat_qty):
-    """작업내역 ÷2 여부를 수동 설정 없이, 라벨발행과 실제로 더 잘 맞는 쪽으로 자동 판단"""
+    """작업내역 ÷2 여부를 라벨발행과 실제 수량이 맞아떨어지는 비율로 판단.
+    한쪽이 압도적으로 맞을 때만 확신(certain)으로 표시하고, 애매하면 confident=False."""
+    common = set(ls2q) & set(raw_cat_qty)
+    total = len(common)
     def count_matches(cat_map):
-        return sum(1 for code in (set(ls2q) & set(cat_map))
-                   if abs(ls2q[code] - cat_map[code]) < 0.5)
+        return sum(1 for code in common if abs(ls2q[code] - cat_map[code]) < 0.5)
     m_div1 = count_matches(apply_catering_div(raw_cat_qty, False))
     m_div2 = count_matches(apply_catering_div(raw_cat_qty, True))
-    return m_div2 > m_div1, m_div1, m_div2
+    rate1 = m_div1 / total if total else 0
+    rate2 = m_div2 / total if total else 0
+    auto_div2 = rate2 > rate1
+    # 이긴 쪽이 전체의 80% 이상을 설명해야 "확실"로 판정 — 51:49 같은 애매한 경우는 confident=False
+    confident = max(rate1, rate2) >= 0.8
+    info = {"m1": m_div1, "m2": m_div2, "total": total, "rate1": rate1, "rate2": rate2, "confident": confident}
+    return auto_div2, info
 
 def load_prework(path):
     if not path or not os.path.exists(path): return {}, set()
@@ -614,18 +622,24 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("##### ⚙️ 검수 옵션")
-    auto_div2, m1, m2 = None, 0, 0
+    auto_div2, detect_info = None, None
     if lbl_path and cat_path:
         try:
             _ls1q, _ls1qc, _ls1i, ls2q_probe, _ls2qc, _ls2i, _canc = load_label(lbl_path, os.path.getmtime(lbl_path))
             raw_cat_probe, _cat_i = load_catering(cat_path, os.path.getmtime(cat_path))
-            auto_div2, m1, m2 = detect_div2(ls2q_probe, raw_cat_probe)
-            st.caption(f"🔎 자동 감지 — ÷2 안 함: {m1}건 일치 / ÷2 적용: {m2}건 일치 → **{'÷2 적용 권장' if auto_div2 else '÷2 안 함 권장'}**")
+            auto_div2, detect_info = detect_div2(ls2q_probe, raw_cat_probe)
+            r1, r2 = detect_info["rate1"]*100, detect_info["rate2"]*100
+            if detect_info["confident"]:
+                st.caption(f"🔎 자동 감지 — ÷2 안 함: {r1:.0f}% 일치 / ÷2 적용: {r2:.0f}% 일치 → "
+                           f"**{'÷2 적용' if auto_div2 else '÷2 안 함'}** (확실)")
+            else:
+                st.warning(f"⚠️ 판단이 애매합니다 — ÷2 안 함: {r1:.0f}% / ÷2 적용: {r2:.0f}% 일치. "
+                           f"실제 이동 횟수를 직접 확인하고 체크박스를 설정하세요.")
         except Exception:
             pass
     div2 = st.checkbox("작업내역 ÷2 적용",
                         value=auto_div2 if auto_div2 is not None else True,
-                        help="자동 감지 결과를 기본값으로 사용합니다. 필요시 직접 켜고 끌 수 있습니다.")
+                        help="자동 감지 결과를 기본값으로 사용합니다. 판단이 애매하면 직접 확인 후 설정하세요.")
 
     st.markdown("---")
     ready = bool(wh_path and lbl_path and cat_path)
