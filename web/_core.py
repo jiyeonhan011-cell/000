@@ -68,20 +68,32 @@ def find_python():
             pass
     return exe
 
+RESTART_FLAG = BASE / ".restart"
+
 def start_streamlit():
     python = find_python()
-    with open(LOG, "w", encoding="utf-8") as lf:
-        lf.write(f"Python: {python}\nCWD: {BASE}\n")
-        proc = subprocess.Popen(
-            [python, "-m", "streamlit", "run", str(BASE / "app.py"),
-             "--server.port", str(PORT),
-             "--server.headless", "true",
-             "--browser.gatherUsageStats", "false",
-             "--server.enableCORS", "false",
-             "--server.enableXsrfProtection", "false"],
-            stdout=lf, stderr=lf, cwd=str(BASE),
-        )
-        proc.wait()
+    first = True
+    while True:
+        if not first:
+            window.load_html(LOADING_HTML)
+            threading.Thread(target=wait_and_open, daemon=True).start()
+        first = False
+        with open(LOG, "w", encoding="utf-8") as lf:
+            lf.write(f"Python: {python}\nCWD: {BASE}\n")
+            proc = subprocess.Popen(
+                [python, "-m", "streamlit", "run", str(BASE / "app.py"),
+                 "--server.port", str(PORT),
+                 "--server.headless", "true",
+                 "--browser.gatherUsageStats", "false",
+                 "--server.enableCORS", "false",
+                 "--server.enableXsrfProtection", "false"],
+                stdout=lf, stderr=lf, cwd=str(BASE),
+            )
+            proc.wait()
+        if RESTART_FLAG.exists():
+            RESTART_FLAG.unlink()
+            continue
+        break
 
 def wait_and_open():
     import urllib.request as req

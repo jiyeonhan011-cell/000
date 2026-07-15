@@ -591,6 +591,23 @@ if "folder_path" not in cfg:
 
 with st.sidebar:
     st.markdown("## 📦 창고이동 검수")
+
+    if st.button("🔄 최신 버전으로 새로고침", use_container_width=True,
+                 help="재부팅 없이 GitHub의 최신 코드를 받아 앱을 다시 시작합니다"):
+        with st.spinner("최신 파일 받는 중..."):
+            try:
+                import urllib.request as _req
+                _base = Path(__file__).parent
+                _github = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
+                for _f in ["app.py", "launcher.py", "_core.py", "icon.ico"]:
+                    _req.urlretrieve(f"{_github}/{_f}", _base / _f)
+                (_base / ".restart").touch()
+                st.success("업데이트 완료! 앱을 다시 시작합니다...")
+                import time as _time; _time.sleep(1)
+                os._exit(0)
+            except Exception as _e:
+                st.error(f"업데이트 실패: {_e}")
+
     st.markdown("---")
     page = st.radio("메뉴", ["🔍 검수", "⚙️ 환산비 관리"], label_visibility="collapsed")
     st.markdown("---")
