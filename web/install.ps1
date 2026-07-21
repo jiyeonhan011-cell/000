@@ -31,15 +31,16 @@ Write-Host "[2/5] 설치 폴더 생성: $InstallDir" -ForegroundColor Green
 
 # 파일 다운로드
 Write-Host "[3/5] 최신 파일 다운로드 중..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri "$GithubBase/app.py"      -OutFile "$InstallDir\app.py"      -UseBasicParsing
-Invoke-WebRequest -Uri "$GithubBase/launcher.py" -OutFile "$InstallDir\launcher.py" -UseBasicParsing
-Invoke-WebRequest -Uri "$GithubBase/icon.ico"    -OutFile "$InstallDir\icon.ico"    -UseBasicParsing
+Invoke-WebRequest -Uri "$GithubBase/app.py"             -OutFile "$InstallDir\app.py"             -UseBasicParsing
+Invoke-WebRequest -Uri "$GithubBase/launcher.py"         -OutFile "$InstallDir\launcher.py"         -UseBasicParsing
+Invoke-WebRequest -Uri "$GithubBase/alps_downloader.py"  -OutFile "$InstallDir\alps_downloader.py"  -UseBasicParsing
+Invoke-WebRequest -Uri "$GithubBase/icon.ico"            -OutFile "$InstallDir\icon.ico"            -UseBasicParsing
 Invoke-WebRequest -Uri "$GithubBase/.streamlit/config.toml" -OutFile "$InstallDir\.streamlit\config.toml" -UseBasicParsing
 Write-Host "      완료" -ForegroundColor Green
 
 # 패키지 설치
-Write-Host "[4/5] 패키지 설치 중 (streamlit xlrd openpyxl pywebview)..." -ForegroundColor Yellow
-& $pyExe -m pip install streamlit xlrd openpyxl pywebview -q
+Write-Host "[4/5] 패키지 설치 중 (streamlit xlrd openpyxl pywebview selenium)..." -ForegroundColor Yellow
+& $pyExe -m pip install streamlit xlrd openpyxl pywebview selenium -q
 Write-Host "      완료" -ForegroundColor Green
 
 # 업데이트 스크립트 생성 (PowerShell — curl보다 안정적, 실패 시 update.log에 기록)
@@ -54,6 +55,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $dir ".streamlit") | Out-Nu
 $files = @{
     "app.py"                  = "$base/app.py"
     "launcher.py"              = "$base/launcher.py"
+    "alps_downloader.py"       = "$base/alps_downloader.py"
     "icon.ico"                 = "$base/icon.ico"
     ".streamlit\config.toml"   = "$base/.streamlit/config.toml"
 }

@@ -599,7 +599,7 @@ with st.sidebar:
                 import urllib.request as _req
                 _base = Path(__file__).parent
                 _github = "https://raw.githubusercontent.com/jiyeonhan011-cell/000/main/web"
-                for _f in ["app.py", "launcher.py", "_core.py", "icon.ico"]:
+                for _f in ["app.py", "launcher.py", "_core.py", "alps_downloader.py", "icon.ico"]:
                     _req.urlretrieve(f"{_github}/{_f}", _base / _f)
                 (_base / ".restart").touch()
                 st.success("업데이트 완료! 앱을 다시 시작합니다...")
@@ -609,8 +609,26 @@ with st.sidebar:
                 st.error(f"업데이트 실패: {_e}")
 
     st.markdown("---")
-    page = st.radio("메뉴", ["🔍 검수", "⚙️ 환산비 관리"], label_visibility="collapsed")
+    page = st.radio("메뉴", ["🔍 검수", "⚙️ 환산비 관리", "🔐 ALPS 계정 설정"], label_visibility="collapsed")
     st.markdown("---")
+
+    with st.expander("📥 작업내역 자동 다운로드 (ALPS)"):
+        _alps_id = cfg.get("alps_id", "")
+        _alps_pw = cfg.get("alps_pw", "")
+        if not _alps_id or not _alps_pw:
+            st.caption("먼저 'ALPS 계정 설정' 메뉴에서 아이디·비밀번호를 등록하세요.")
+        else:
+            if st.button("전일자 작업내역 받아오기", use_container_width=True):
+                with st.spinner("ALPS 접속 중... (최대 1분 소요)"):
+                    try:
+                        from alps_downloader import download_yesterday_workreport
+                        saved = download_yesterday_workreport(_alps_id, _alps_pw)
+                        st.success(f"다운로드 완료: {Path(saved).name}")
+                    except ModuleNotFoundError:
+                        st.error("selenium이 설치되어 있지 않습니다. 앱을 재설치하면 자동으로 설치됩니다.")
+                    except Exception as _e:
+                        st.error(f"다운로드 실패: {_e}")
+                        st.caption("web/alps_download_error.png 스크린샷을 확인해주세요.")
 
     st.markdown("##### 📁 검수 파일 폴더")
     folder_path = st.text_input("폴더 경로", value=saved_path, label_visibility="collapsed")
@@ -671,6 +689,21 @@ st.markdown("""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ── ALPS 계정 설정 페이지 ──────────────────────────────────────────
+if page == "🔐 ALPS 계정 설정":
+    st.markdown('<div class="section-header">🔐 ALPS 계정 설정</div>', unsafe_allow_html=True)
+    st.caption("입력한 아이디·비밀번호는 이 컴퓨터의 config.json에만 저장되며, 외부로 전송되지 않습니다.")
+    st.markdown("")
+    with st.form("alps_account_form"):
+        new_id = st.text_input("ALPS 아이디", value=cfg.get("alps_id", ""))
+        new_pw = st.text_input("ALPS 비밀번호", value=cfg.get("alps_pw", ""), type="password")
+        submitted = st.form_submit_button("저장", type="primary")
+        if submitted:
+            save_config({**cfg, "alps_id": new_id, "alps_pw": new_pw})
+            st.success("저장되었습니다.")
+            st.rerun()
+    st.stop()
 
 # ── 환산비 관리 페이지 ────────────────────────────────────────────
 if page == "⚙️ 환산비 관리":
