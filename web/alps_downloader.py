@@ -23,20 +23,36 @@ ERROR_SHOT = BASE / "alps_download_error.png"
 
 
 def _make_driver():
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-
+    """Edge를 우선 시도하고(사내 PC엔 보통 기본 설치돼 있음), 안 되면 Chrome으로 대체"""
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    opts = Options()
-    opts.add_argument("--window-size=1400,1000")
-    # 필요하면 헤드리스로 바꿀 수 있음 (opts.add_argument("--headless=new"))
     prefs = {
         "download.default_directory": str(DOWNLOAD_DIR),
         "download.prompt_for_download": False,
         "profile.default_content_setting_values.automatic_downloads": 1,
     }
-    opts.add_experimental_option("prefs", prefs)
-    return webdriver.Chrome(options=opts)
+
+    from selenium import webdriver
+    errors = []
+
+    try:
+        from selenium.webdriver.edge.options import Options as EdgeOptions
+        eopts = EdgeOptions()
+        eopts.add_argument("--window-size=1400,1000")
+        eopts.add_experimental_option("prefs", prefs)
+        return webdriver.Edge(options=eopts)
+    except Exception as e:
+        errors.append(f"Edge 실패: {e}")
+
+    try:
+        from selenium.webdriver.chrome.options import Options as ChromeOptions
+        copts = ChromeOptions()
+        copts.add_argument("--window-size=1400,1000")
+        copts.add_experimental_option("prefs", prefs)
+        return webdriver.Chrome(options=copts)
+    except Exception as e:
+        errors.append(f"Chrome 실패: {e}")
+
+    raise RuntimeError("Edge와 Chrome 둘 다 자동 실행에 실패했습니다.\n" + "\n".join(errors))
 
 
 def download_yesterday_workreport(alps_id, alps_pw, target_date=None):
@@ -54,15 +70,7 @@ def download_yesterday_workreport(alps_id, alps_pw, target_date=None):
         target_date = datetime.date.today() - datetime.timedelta(days=1)
     date_str = target_date.strftime("%Y-%m-%d")
 
-    try:
-        driver = _make_driver()
-    except Exception as e:
-        raise RuntimeError(
-            "Chrome 브라우저를 자동으로 띄우지 못했습니다. "
-            "selenium을 최신 버전으로 업데이트해야 할 수 있습니다 "
-            "(cmd에서 'py -m pip install --upgrade selenium' 실행 후 다시 시도). "
-            f"원본 오류: {e}"
-        ) from e
+    driver = _make_driver()
     wait = WebDriverWait(driver, 20)
     try:
         # 1) 로그인
