@@ -54,7 +54,15 @@ def download_yesterday_workreport(alps_id, alps_pw, target_date=None):
         target_date = datetime.date.today() - datetime.timedelta(days=1)
     date_str = target_date.strftime("%Y-%m-%d")
 
-    driver = _make_driver()
+    try:
+        driver = _make_driver()
+    except Exception as e:
+        raise RuntimeError(
+            "Chrome 브라우저를 자동으로 띄우지 못했습니다. "
+            "selenium을 최신 버전으로 업데이트해야 할 수 있습니다 "
+            "(cmd에서 'py -m pip install --upgrade selenium' 실행 후 다시 시도). "
+            f"원본 오류: {e}"
+        ) from e
     wait = WebDriverWait(driver, 20)
     try:
         # 1) 로그인
